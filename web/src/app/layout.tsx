@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -11,6 +13,20 @@ export const metadata: Metadata = {
   description: "Drives and charges streamed from your Tesla",
 };
 
+/** Shown when TT_DEMO=1: a public instance that serves generated data. */
+async function DemoBanner() {
+  await connection(); // read the env at request time, not at build time
+  if (process.env.TT_DEMO !== "1") return null;
+  return (
+    <div className="border-b border-amber-500/30 bg-amber-500/10 px-5 py-2 text-center text-xs text-amber-200">
+      Demo with made-up data for a fictional car.{" "}
+      <a href="https://github.com/victoriano/tesla-tracks" className="underline hover:text-white">
+        Run Tesla Tracks with your own Tesla →
+      </a>
+    </div>
+  );
+}
+
 const nav = [
   { href: "/", label: "Overview" },
   { href: "/drives", label: "Drives" },
@@ -21,6 +37,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full bg-zinc-950 text-zinc-100">
+        <Suspense fallback={null}>
+          <DemoBanner />
+        </Suspense>
         <header className="border-b border-zinc-800/80">
           <div className="mx-auto flex max-w-6xl items-center gap-8 px-5 py-4">
             <Link href="/" className="font-semibold tracking-tight">

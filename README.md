@@ -30,6 +30,12 @@ TT_DATA_DIR=./data uv run tesla-tracks demo      # writes FAKE data for a demo c
 cd web && npm install && TT_DATA_DIR=../data npm run dev
 ```
 
+### Public demo
+
+Want to show it without exposing your own drives? `deploy/refresh-demo.sh` fills `./demo-data` with made-up drives
+and charges, and `docker compose --profile demo up -d web-demo` serves them on `127.0.0.1:3001` with a demo banner.
+Run the script daily so the dates stay recent.
+
 ## What you need
 
 - A Linux server with Docker and a public IP.

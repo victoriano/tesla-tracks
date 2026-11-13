@@ -41,6 +41,23 @@ services:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     restart: unless-stopped
 
+  # Optional public demo with generated data (`docker compose --profile demo up -d web-demo`).
+  # Fill ./demo-data with deploy/refresh-demo.sh. Shows a "demo" banner; safe to expose without login.
+  web-demo:
+    build: ./web
+    profiles: [demo]
+    environment:
+      TT_DATA_DIR: /data
+      TT_DEMO: "1"
+      TZ: ${TZ:-UTC}
+      TT_LOCALE: ${TT_LOCALE:-en-US}
+      TT_CURRENCY: ${TT_CURRENCY:-EUR}
+    volumes:
+      - ./demo-data:/data:ro
+    ports:
+      - "127.0.0.1:${WEB_DEMO_PORT:-3001}:3000"
+    restart: unless-stopped
+
   # Optional: only if the server has no reverse proxy yet (`docker compose --profile caddy up -d`).
   # Serves the public key, obtains the Let's Encrypt certificate and proxies the dashboard.
   caddy:

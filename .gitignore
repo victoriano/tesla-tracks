@@ -5,6 +5,7 @@
 secrets/
 certs/
 data/
+demo-data*/
 /public/
 *.pem
 !telemetry/ca.pem
