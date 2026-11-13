@@ -34,6 +34,7 @@ services:
       TT_DATA_DIR: /data
       TZ: ${TZ:-UTC}
       TT_LOCALE: ${TT_LOCALE:-en-US}
+      TT_CURRENCY: ${TT_CURRENCY:-EUR}
     volumes:
       - ./data:/data:ro
     ports:

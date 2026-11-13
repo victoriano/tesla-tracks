@@ -1,9 +1,10 @@
 import { connection } from "next/server";
 import { Bars } from "@/components/charts";
 import RouteMap from "@/components/RouteMap";
+import { CostValue, PricePicker } from "@/components/Cost";
 import { Card, Empty, RowLink, Stat } from "@/components/ui";
 import { dailyKm, drives, recentRoutes, summary } from "@/lib/data";
-import { dateTime, duration, fmt } from "@/lib/format";
+import { CURRENCY, dateTime, duration, fmt, LOCALE_CODE } from "@/lib/format";
 
 export default async function Overview() {
   await connection(); // always read fresh Parquet
@@ -29,7 +30,16 @@ export default async function Overview() {
         <Stat label="Distance · 30 d" value={fmt(s30.km, 0, "km")} hint={`${fmt(s365.km, 0, "km")} in 12 months`} />
         <Stat label="Drives · 30 d" value={s30.drives} hint={`${fmt(s30.hours, 1, "h")} driving`} />
         <Stat label="Consumption · 30 d" value={fmt(s30.wh_per_km, 0, "Wh/km")} hint={`${fmt(s365.wh_per_km, 0)} over 12 months`} />
-        <Stat label="Energy used · 30 d" value={fmt(s30.kwh, 0, "kWh")} />
+        <Stat
+          label="Energy used · 30 d"
+          value={fmt(s30.kwh, 0, "kWh")}
+          hint={
+            <span className="flex flex-wrap items-center gap-1">
+              ≈ <CostValue kwh={s30.kwh === null ? null : Number(s30.kwh)} currency={CURRENCY} locale={LOCALE_CODE} /> at{" "}
+              <PricePicker currency={CURRENCY} locale={LOCALE_CODE} />
+            </span>
+          }
+        />
         <Stat label="Energy charged · 30 d" value={fmt(s30.charged_kwh, 0, "kWh")} />
       </div>
 

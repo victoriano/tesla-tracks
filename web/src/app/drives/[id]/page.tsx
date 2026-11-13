@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import Link from "next/link";
+import { CostValue, PricePicker } from "@/components/Cost";
 import DriveExplorer from "@/components/DriveExplorer";
 import { Badge, Stat } from "@/components/ui";
 import { drive, positions } from "@/lib/data";
-import { dateTime, duration, fmt, LOCALE_CODE, time, TIMEZONE } from "@/lib/format";
+import { dateTime, duration, fmt, CURRENCY, LOCALE_CODE, time, TIMEZONE } from "@/lib/format";
 import type { TrackPoint } from "@/lib/driveMetrics";
 
 export default async function DrivePage({ params }: { params: Promise<{ id: string }> }) {
@@ -41,11 +42,15 @@ export default async function DrivePage({ params }: { params: Promise<{ id: stri
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
         <Stat label="Distance" value={fmt(d.distance_km, 1, "km")} />
-        <Stat label="Duration" value={duration(d.duration_min)} />
+        <Stat label="Duration" value={duration(d.duration_min)} hint={`${fmt(d.avg_outside_temp_c, 0, "°C")} outside`} />
         <Stat label="Consumption" value={fmt(d.wh_per_km, 0, "Wh/km")} hint={fmt(d.energy_kwh, 2, "kWh")} />
         <Stat label="Battery" value={`${fmt(d.start_soc, 0)}→${fmt(d.end_soc, 0, "%")}`} />
         <Stat label="Avg / max speed" value={fmt(d.avg_speed_kmh, 0)} hint={fmt(d.max_speed_kmh, 0, "km/h max")} />
-        <Stat label="Outside" value={fmt(d.avg_outside_temp_c, 0, "°C")} />
+        <Stat
+          label="Cost"
+          value={<CostValue kwh={d.energy_kwh === null ? null : Number(d.energy_kwh)} currency={CURRENCY} locale={LOCALE_CODE} />}
+          hint={<PricePicker currency={CURRENCY} locale={LOCALE_CODE} align="right" />}
+        />
       </div>
 
       <DriveExplorer points={track} timeZone={TIMEZONE} locale={LOCALE_CODE} />

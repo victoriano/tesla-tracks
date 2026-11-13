@@ -117,6 +117,9 @@ SELECT * FROM 'r2://<bucket>/tesla-tracks/derived/drives.parquet' ORDER BY start
 (not in gear and not moving) for 3 minutes, or when the stream goes silent for 10 minutes. Short stops stay in
 the same drive. **Charges:** from `DetailedChargeState` Starting/Charging until Complete/Stopped/Disconnected.
 
+**Trip cost** = energy taken from the battery × a price per kWh that you pick in the dashboard (presets for home,
+off-peak, Supercharger and other fast chargers, or any value; remembered in the browser). Set the currency with `TT_CURRENCY`.
+
 Fleet Telemetry reports distances in miles and speeds in mph; Tesla Tracks stores km and km/h.
 
 Which signals the car sends, and how often, is set in [`telemetry/fields.json`](telemetry/fields.json).

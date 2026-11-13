@@ -31,3 +31,4 @@ export function duration(minutes: unknown): string {
 
 export const TIMEZONE = TZ;
 export const LOCALE_CODE = LOCALE;
+export const CURRENCY = process.env.TT_CURRENCY || "EUR";
