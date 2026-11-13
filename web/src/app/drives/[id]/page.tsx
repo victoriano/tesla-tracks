@@ -49,7 +49,14 @@ export default async function DrivePage({ params }: { params: Promise<{ id: stri
         <Stat
           label="Cost"
           value={<CostValue kwh={d.energy_kwh === null ? null : Number(d.energy_kwh)} currency={CURRENCY} locale={LOCALE_CODE} />}
-          hint={<PricePicker currency={CURRENCY} locale={LOCALE_CODE} align="right" />}
+          hint={
+            <PricePicker
+              currency={CURRENCY}
+              locale={LOCALE_CODE}
+              align="right"
+              kwh={d.energy_kwh === null ? null : Number(d.energy_kwh)}
+            />
+          }
         />
       </div>
 

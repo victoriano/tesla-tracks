@@ -57,10 +57,13 @@ export function PricePicker({
   currency,
   locale,
   align = "left",
+  kwh,
 }: {
   currency: string;
   locale: string;
   align?: "left" | "right";
+  /** When given, each tariff also shows what this energy would cost with it. */
+  kwh?: number | null;
 }) {
   const price = usePrice();
   const [open, setOpen] = useState(false);
@@ -80,6 +83,7 @@ export function PricePicker({
     if (Number.isFinite(v) && v > 0 && v < 10) write(Math.round(v * 1000) / 1000);
   };
   const preset = PRESETS.find((p) => Math.abs(p.price - price) < 1e-9);
+  const hasKwh = kwh !== undefined && kwh !== null && Number.isFinite(kwh);
 
   return (
     <div ref={box} className="relative inline-block">
@@ -94,8 +98,11 @@ export function PricePicker({
         {money(price, currency, locale)}/kWh ▾
       </button>
       {open ? (
-        <div className={`absolute ${align === "right" ? "right-0" : "left-0"} z-20 mt-1 w-64 rounded-lg border border-zinc-700 bg-zinc-900 p-2 shadow-xl`}>
-          <div className="mb-1 px-1 text-[11px] uppercase tracking-wide text-zinc-500">Electricity price</div>
+        <div className={`absolute ${align === "right" ? "right-0" : "left-0"} z-20 mt-1 w-72 rounded-lg border border-zinc-700 bg-zinc-900 p-2 shadow-xl`}>
+          <div className="mb-1 flex justify-between px-1 text-[11px] uppercase tracking-wide text-zinc-500">
+            <span>Electricity price</span>
+            {hasKwh ? <span>{(kwh as number).toLocaleString(locale, { maximumFractionDigits: 1 })} kWh would cost</span> : null}
+          </div>
           {PRESETS.map((p) => (
             <button
               key={p.id}
@@ -107,8 +114,13 @@ export function PricePicker({
                 preset?.id === p.id ? "text-white" : "text-zinc-300"
               }`}
             >
-              <span>{p.label}</span>
-              <span className="tabular-nums text-zinc-400">{money(p.price, currency, locale)}</span>
+              <span className="flex flex-col items-start">
+                <span>{p.label}</span>
+                <span className="text-[11px] tabular-nums text-zinc-500">{money(p.price, currency, locale)}/kWh</span>
+              </span>
+              {hasKwh ? (
+                <span className="tabular-nums font-medium">{money(p.price * (kwh as number), currency, locale)}</span>
+              ) : null}
             </button>
           ))}
           <form
@@ -127,6 +139,11 @@ export function PricePicker({
               className="w-20 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-sm tabular-nums text-white outline-none focus:border-zinc-400"
             />
             <span className="text-xs text-zinc-500">{currency}/kWh</span>
+            {hasKwh ? (
+              <span className="text-xs tabular-nums text-zinc-400">
+                = {money(Number(draft.replace(",", ".")) * (kwh as number) || 0, currency, locale)}
+              </span>
+            ) : null}
             <button type="submit" className="ml-auto rounded-md bg-zinc-700 px-2 py-1 text-xs text-white hover:bg-zinc-600">
               Set
             </button>

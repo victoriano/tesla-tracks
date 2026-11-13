@@ -36,7 +36,7 @@ export default async function Overview() {
           hint={
             <span className="flex flex-wrap items-center gap-1">
               ≈ <CostValue kwh={s30.kwh === null ? null : Number(s30.kwh)} currency={CURRENCY} locale={LOCALE_CODE} /> at{" "}
-              <PricePicker currency={CURRENCY} locale={LOCALE_CODE} />
+              <PricePicker currency={CURRENCY} locale={LOCALE_CODE} kwh={s30.kwh === null ? null : Number(s30.kwh)} />
             </span>
           }
         />
