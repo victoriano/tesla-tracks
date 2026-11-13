@@ -66,6 +66,14 @@ FIELDS = [
 STRING_FIELDS = {"Gear", "DetailedChargeState", "FastChargerType"}
 MOVING_GEARS = {"D", "R", "N"}
 CHARGING_STATES = {"Starting", "Charging"}
+SESSION_FIELDS = (
+    "ACChargingPower",
+    "DCChargingPower",
+    "ACChargingEnergyIn",
+    "DCChargingEnergyIn",
+    "FastChargerPresent",
+    "FastChargerType",
+)
 CHARGE_END_STATES = {"Complete", "Stopped", "Disconnected", "NoPower"}
 
 DRIVE_SCHEMA = pa.schema(
@@ -179,6 +187,7 @@ class _Charge:
     dc: bool = False
     energy_in_min: float | None = None
     energy_in_max: float | None = None
+    baseline_seen: bool = False  # did the session counter's first value arrive when charging started?
 
 
 class Tracker:
@@ -272,13 +281,21 @@ class Tracker:
         )
 
     # -- charges ------------------------------------------------------------------------------
-    def _open_charge(self, ts: datetime) -> None:
+    def _open_charge(self, ts: datetime, updates: dict) -> None:
+        # Charging signals are only sent on change, so values left over from the previous session
+        # (e.g. the last DC power of a Supercharger stop) must not leak into this one.
+        for key in SESSION_FIELDS:
+            if key not in updates:
+                self.state.pop(key, None)
         self.charge = _Charge(start_ts=ts, start=dict(self.state), last_ts=ts)
+        self.charge.baseline_seen = any(k in updates for k in ("ACChargingEnergyIn", "DCChargingEnergyIn"))
 
     def _close_charge(self, end_ts: datetime, end: dict, in_progress: bool = False) -> None:
         c, a = self.charge, self.charge.start
         if c.energy_in_max is not None and c.energy_in_min is not None:
-            added = c.energy_in_max - c.energy_in_min
+            # *ChargingEnergyIn counts energy of the current session. Values are sent only on change,
+            # so if the session started without one, the counter started from zero.
+            added = c.energy_in_max - (c.energy_in_min if c.baseline_seen else 0.0)
         else:
             e0, e1 = _num(a.get("EnergyRemaining")), _num(end.get("EnergyRemaining"))
             added = e1 - e0 if e0 is not None and e1 is not None else None
@@ -349,7 +366,7 @@ class Tracker:
 
         cs = self.state.get("DetailedChargeState")
         if self.charge is None and cs in CHARGING_STATES:
-            self._open_charge(ts)
+            self._open_charge(ts, updates)
         if self.charge:
             self._track_charge()
             self.charge.last_ts = ts

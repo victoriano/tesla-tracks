@@ -152,3 +152,21 @@ def test_dc_charge_detected():
     tr.finish(at(5000))
     assert tr.charges[0]["charger"] == "DC"
     assert tr.charges[0]["max_power_kw"] == 150.0
+
+
+def test_ac_charge_after_dc_charge_does_not_inherit_dc_values():
+    tr = Tracker(VIN)
+    parked_car(tr)
+    tr.step(at(100), {"DetailedChargeState": "Charging", "FastChargerPresent": 1.0, "DCChargingPower": 150.0})
+    tr.step(at(700), {"DCChargingPower": 90.0, "DCChargingEnergyIn": 20.0})
+    tr.step(at(800), {"DetailedChargeState": "Complete"})
+    # next day, home AC charging: the car never re-sends the old DC values
+    tr.step(at(90_000), {"DetailedChargeState": "Charging", "FastChargerPresent": 0.0})
+    for i in range(1, 6):
+        tr.step(at(90_000 + i * 600), {"ACChargingPower": 7.0, "ACChargingEnergyIn": i * 1.2})
+    tr.step(at(94_000), {"DetailedChargeState": "Complete"})
+    tr.finish(at(100_000))
+    ac = tr.charges[1]
+    assert ac["charger"] == "AC"
+    assert ac["max_power_kw"] == 7.0
+    assert abs(ac["energy_added_kwh"] - 6.0) < 1e-6  # counter started at 0, first value 1.2
