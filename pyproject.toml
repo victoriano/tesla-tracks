@@ -1,0 +1,38 @@
+[project]
+name = "tesla-tracks"
+version = "0.1.0"
+description = "Self-hosted Tesla drive & charge logger on Fleet Telemetry, Parquet and DuckDB"
+requires-python = ">=3.12"
+dependencies = [
+    "boto3>=1.44.2",
+    "cryptography>=50.0.2",
+    "duckdb>=2.0.0",
+    "httpx>=0.28.1",
+    "pyarrow>=26.0.1",
+    "pytz>=2026.6",
+    "pyzmq>=27.3.0",
+    "typer>=0.29.1",
+]
+
+[project.scripts]
+tesla-tracks = "tesla_tracks.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.5",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008", "SIM115"]

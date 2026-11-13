@@ -1,0 +1,62 @@
+name: tesla-tracks
+
+services:
+  # Tesla's official streaming server. The car connects here over mutual TLS.
+  fleet-telemetry:
+    image: tesla/fleet-telemetry:v0.10.0
+    user: "${TT_UID:-1000}:${TT_GID:-1000}"
+    command: ["/fleet-telemetry", "-config", "/etc/fleet-telemetry/config.json"]
+    volumes:
+      - ./deploy/fleet-telemetry.json:/etc/fleet-telemetry/config.json:ro
+      - ./certs:/certs:ro
+    ports:
+      - "${TELEMETRY_PORT:-4443}:4443"
+    restart: unless-stopped
+
+  # Decodes the stream into Parquet, detects drives and charges, mirrors to S3/R2.
+  ingester:
+    build: .
+    user: "${TT_UID:-1000}:${TT_GID:-1000}"
+    command: ["tesla-tracks", "run"]
+    env_file: .env
+    environment:
+      TT_DATA_DIR: /data
+      TT_ZMQ_ENDPOINT: tcp://fleet-telemetry:5284
+    volumes:
+      - ./data:/data
+    depends_on: [fleet-telemetry]
+    restart: unless-stopped
+
+  # Dashboard. Bound to localhost: put your reverse proxy (and auth!) in front of it.
+  web:
+    build: ./web
+    environment:
+      TT_DATA_DIR: /data
+      TZ: ${TZ:-UTC}
+      TT_LOCALE: ${TT_LOCALE:-en-US}
+    volumes:
+      - ./data:/data:ro
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    restart: unless-stopped
+
+  # Optional: only if the server has no reverse proxy yet (`docker compose --profile caddy up -d`).
+  # Serves the public key, obtains the Let's Encrypt certificate and proxies the dashboard.
+  caddy:
+    image: caddy:2
+    profiles: [caddy]
+    environment:
+      TESLA_APP_DOMAIN: ${TESLA_APP_DOMAIN}
+      WEB_HOSTNAME: ${WEB_HOSTNAME}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./public:/srv/public:ro
+      - caddy_data:/data
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+
+volumes:
+  caddy_data:

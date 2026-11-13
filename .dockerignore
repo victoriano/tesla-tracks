@@ -1,0 +1,9 @@
+.venv
+.git
+data
+secrets
+certs
+public
+web
+.env
+**/__pycache__

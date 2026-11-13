@@ -1,0 +1,29 @@
+# Used by the optional `caddy` compose profile. If you already run Caddy on the host,
+# copy these two site blocks into your own Caddyfile instead (adjust paths/ports).
+{
+	email {$ACME_EMAIL}
+}
+
+# App domain registered with Tesla. Serves the public key; its Let's Encrypt certificate
+# is also used by fleet-telemetry on port 4443 (copy it with deploy/sync-certs.sh).
+# Force Let's Encrypt so the cert matches telemetry/ca.pem.
+{$TESLA_APP_DOMAIN} {
+	tls {
+		issuer acme
+	}
+	handle /.well-known/appspecific/* {
+		root * /srv/public
+		file_server
+	}
+	handle {
+		respond 404
+	}
+}
+
+# Dashboard. Protect it: basic_auth below, or an identity proxy such as Cloudflare Access.
+{$WEB_HOSTNAME} {
+	# basic_auth {
+	# 	you $2a$14$...   # caddy hash-password
+	# }
+	reverse_proxy web:3000
+}
