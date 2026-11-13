@@ -207,7 +207,16 @@ def sign_config(s: Settings, config: dict) -> str:
         out = subprocess.run(cmd, check=False, capture_output=True, text=True)
         if out.returncode != 0:
             raise FleetError(f"tesla-jws failed: {out.stderr or out.stdout}")
-        return out.stdout.strip()
+        return extract_jws(out.stdout)
+
+
+def extract_jws(output: str) -> str:
+    """tesla-jws may print log lines (JSON) on stdout before the token; keep the compact JWS line."""
+    for line in reversed(output.splitlines()):
+        line = line.strip()
+        if line.count(".") == 2 and line.startswith("eyJ"):
+            return line
+    raise FleetError(f"tesla-jws produced no token: {output[:300]}")
 
 
 def push_telemetry_config(s: Settings, vins: list[str], token: str) -> dict:

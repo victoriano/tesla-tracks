@@ -118,3 +118,10 @@ def test_build_ca_adds_chain_intermediates(tmp_path):
     ca = build_ca(roots, chain)
     assert "LEAF" not in ca and ca.count("BEGIN") == 3 and ca.index("INTER") < ca.index("ROOT1")
     assert build_ca(roots, tmp_path / "missing.pem").count("BEGIN") == 2
+
+
+def test_extract_jws_skips_log_lines():
+    from tesla_tracks.fleet import extract_jws
+
+    out = '{"_l":"ERR","_m":"Could not get working directory"}\neyJhbGciOi.eyJpc3Mi.c2ln\n'
+    assert extract_jws(out) == "eyJhbGciOi.eyJpc3Mi.c2ln"
