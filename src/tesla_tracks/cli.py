@@ -90,15 +90,16 @@ def pair_url() -> None:
 def telemetry_config(
     vin: list[str] = typer.Option(..., help="VIN(s) to configure"),
     fields_file: Path = typer.Option(REPO / "telemetry" / "fields.json"),
-    ca_file: Path = typer.Option(REPO / "telemetry" / "ca.pem", help="CA chain that signs the server cert"),
+    ca_file: Path = typer.Option(REPO / "telemetry" / "ca.pem", help="Root CAs of the server certificate"),
+    chain_file: Path = typer.Option(REPO / "certs" / "fullchain.pem", help="Server chain; intermediates are added"),
     exp_days: int = typer.Option(360, help="Config expiry; re-run before it lapses"),
     dry_run: bool = typer.Option(False, help="Print the config instead of sending it"),
 ) -> None:
     """Sign the streaming config with the app key and send it to the car(s)."""
     s = _settings()
-    config = fleet.build_telemetry_config(s, fields_file, ca_file, exp_days)
+    config = fleet.build_telemetry_config(s, fields_file, ca_file, exp_days, chain_file)
     if dry_run:
-        _print({**config, "ca": config["ca"][:60] + "..."})
+        _print({**config, "ca": f"{config['ca'].count('BEGIN CERTIFICATE')} certificates"})
         return
     token = fleet.sign_config(s, config)
     _print(fleet.push_telemetry_config(s, vin, token))

@@ -103,3 +103,18 @@ def test_writer_spool_replay_and_end_to_end(tmp_path):
     row = duckdb.sql(f"SELECT * FROM '{tmp_path}/derived/drives.parquet'").to_arrow_table().to_pylist()[0]
     assert abs(row["distance_km"] - 1.0 * 1.609344) < 0.01
     assert row["in_progress"] is False
+
+
+def test_build_ca_adds_chain_intermediates(tmp_path):
+    from tesla_tracks.fleet import build_ca
+
+    def pem(n):
+        return f"-----BEGIN CERTIFICATE-----\n{n}\n-----END CERTIFICATE-----"
+
+    roots = tmp_path / "ca.pem"
+    roots.write_text(pem("ROOT1") + "\n" + pem("ROOT2"))
+    chain = tmp_path / "fullchain.pem"
+    chain.write_text("\n".join([pem("LEAF"), pem("INTER"), pem("ROOT2")]))
+    ca = build_ca(roots, chain)
+    assert "LEAF" not in ca and ca.count("BEGIN") == 3 and ca.index("INTER") < ca.index("ROOT1")
+    assert build_ca(roots, tmp_path / "missing.pem").count("BEGIN") == 2

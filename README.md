@@ -78,6 +78,8 @@ cd web && npm install && TT_DATA_DIR=../data npm run dev
    uv run tesla-tracks telemetry-config --vin <VIN>   # signs telemetry/fields.json with your key and sends it
    uv run tesla-tracks telemetry-status <VIN>         # wait for "synced": true; shows streaming errors
    ```
+   The `ca` sent to the car contains the roots in `telemetry/ca.pem` plus the intermediates of your current
+   certificate (`certs/fullchain.pem`), which is what Tesla's `check_server_cert.sh` validates against.
    Signing uses Tesla's `tesla-jws` (from the official `tesla/vehicle-command` image, or a local binary on PATH).
    The configuration expires (default 360 days): re-run `telemetry-config` before then.
 

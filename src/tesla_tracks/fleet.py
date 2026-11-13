@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import shutil
 import subprocess
@@ -156,13 +157,28 @@ def api(s: Settings, method: str, path: str, **kwargs) -> dict:
 
 
 # -- telemetry configuration --------------------------------------------------------------------------
-def build_telemetry_config(s: Settings, fields_file: Path, ca_file: Path, exp_days: int) -> dict:
+_PEM_RE = re.compile(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", re.S)
+
+
+def build_ca(ca_file: Path, chain_file: Path | None) -> str:
+    """Root CAs plus the intermediates of the server's current chain (Tesla's own checker requires them)."""
+    certs = _PEM_RE.findall(ca_file.read_text())
+    if chain_file and chain_file.exists():
+        for cert in _PEM_RE.findall(chain_file.read_text())[1:]:  # skip the leaf
+            if cert not in certs:
+                certs.insert(0, cert)
+    return "\n".join(certs) + "\n"
+
+
+def build_telemetry_config(
+    s: Settings, fields_file: Path, ca_file: Path, exp_days: int, chain_file: Path | None = None
+) -> dict:
     fields = json.loads(fields_file.read_text())
     fields = {k: v for k, v in fields.items() if not k.startswith("_")}
     return {
         "hostname": _require(s.telemetry_hostname, "TELEMETRY_HOSTNAME"),
         "port": s.telemetry_port,
-        "ca": ca_file.read_text(),
+        "ca": build_ca(ca_file, chain_file),
         "fields": fields,
         "alert_types": ["service"],
         "delivery_policy": "latest",
