@@ -27,3 +27,29 @@
 	# }
 	reverse_proxy web:3000
 }
+
+# Alternative for the dashboard: visitors see the public demo, signed-in people see the real data,
+# on the same hostname. Needs the `demo` profile running and TT_AUTH_LINKS=1 (adds Sign in / Sign out).
+# SESSION is a long random string (openssl rand -hex 32); the cookie proves a past successful login.
+#
+# {$WEB_HOSTNAME} {
+# 	@signedin header_regexp Cookie (^|;\s*)tt_session=SESSION(;|$)
+# 	handle /login {
+# 		basic_auth {
+# 			you  $2a$14$...   # caddy hash-password
+# 			them $2a$14$...
+# 		}
+# 		header Set-Cookie "tt_session=SESSION; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=7776000"
+# 		redir * / 302
+# 	}
+# 	handle /logout {
+# 		header Set-Cookie "tt_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"
+# 		redir * / 302
+# 	}
+# 	handle @signedin {
+# 		reverse_proxy web:3000
+# 	}
+# 	handle {
+# 		reverse_proxy web-demo:3000
+# 	}
+# }

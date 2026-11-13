@@ -35,6 +35,7 @@ services:
       TZ: ${TZ:-UTC}
       TT_LOCALE: ${TT_LOCALE:-en-US}
       TT_CURRENCY: ${TT_CURRENCY:-EUR}
+      TT_AUTH_LINKS: ${TT_AUTH_LINKS:-0}
     volumes:
       - ./data:/data:ro
     ports:
@@ -52,6 +53,7 @@ services:
       TZ: ${TZ:-UTC}
       TT_LOCALE: ${TT_LOCALE:-en-US}
       TT_CURRENCY: ${TT_CURRENCY:-EUR}
+      TT_AUTH_LINKS: ${TT_AUTH_LINKS:-0}
     volumes:
       - ./demo-data:/data:ro
     ports:

@@ -27,6 +27,21 @@ async function DemoBanner() {
   );
 }
 
+/**
+ * Optional sign-in / sign-out links for a reverse proxy that serves the demo to visitors and the real
+ * dashboard after login (see deploy/Caddyfile). Enabled with TT_AUTH_LINKS=1.
+ */
+async function AuthLink() {
+  await connection();
+  if (process.env.TT_AUTH_LINKS !== "1") return null;
+  const demo = process.env.TT_DEMO === "1";
+  return (
+    <a href={demo ? "/login" : "/logout"} className="ml-auto text-sm text-zinc-400 hover:text-zinc-100">
+      {demo ? "Sign in" : "Sign out"}
+    </a>
+  );
+}
+
 const nav = [
   { href: "/", label: "Overview" },
   { href: "/drives", label: "Drives" },
@@ -52,6 +67,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 </Link>
               ))}
             </nav>
+            <Suspense fallback={null}>
+              <AuthLink />
+            </Suspense>
           </div>
         </header>
         <main className="mx-auto max-w-6xl px-5 py-8">{children}</main>
