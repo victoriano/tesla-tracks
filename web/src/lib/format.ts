@@ -30,3 +30,4 @@ export function duration(minutes: unknown): string {
 }
 
 export const TIMEZONE = TZ;
+export const LOCALE_CODE = LOCALE;

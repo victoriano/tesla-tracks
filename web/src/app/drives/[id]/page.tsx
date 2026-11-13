@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import Link from "next/link";
-import { Line } from "@/components/charts";
-import RouteMap from "@/components/RouteMap";
-import { Badge, Card, Stat } from "@/components/ui";
+import DriveExplorer from "@/components/DriveExplorer";
+import { Badge, Stat } from "@/components/ui";
 import { drive, positions } from "@/lib/data";
-import { dateTime, duration, fmt, time } from "@/lib/format";
+import { dateTime, duration, fmt, LOCALE_CODE, time, TIMEZONE } from "@/lib/format";
+import type { TrackPoint } from "@/lib/driveMetrics";
 
 export default async function DrivePage({ params }: { params: Promise<{ id: string }> }) {
   await connection();
@@ -13,9 +13,15 @@ export default async function DrivePage({ params }: { params: Promise<{ id: stri
   const [d, pts] = await Promise.all([drive(id), positions(id)]);
   if (!d) notFound();
 
-  const coords = pts.map((p) => [Number(p.lon), Number(p.lat)] as [number, number]);
-  const series = (key: "speed_kmh" | "soc" | "power_kw") =>
-    pts.map((p) => ({ x: Number(p.ms), y: p[key] === null ? null : Number(p[key]) }));
+  const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+  const track: TrackPoint[] = pts.map((p) => ({
+    t: Number(p.ms),
+    lat: Number(p.lat),
+    lon: Number(p.lon),
+    speed: num(p.speed_kmh),
+    power: num(p.power_kw),
+    soc: num(p.soc),
+  }));
 
   return (
     <div className="space-y-6">
@@ -42,15 +48,7 @@ export default async function DrivePage({ params }: { params: Promise<{ id: stri
         <Stat label="Outside" value={fmt(d.avg_outside_temp_c, 0, "°C")} />
       </div>
 
-      {coords.length > 1 ? <RouteMap routes={[{ id: d.drive_id, coords }]} /> : null}
-
-      <Card>
-        <div className="grid gap-6 md:grid-cols-3">
-          <Line points={series("speed_kmh")} label="Speed" unit="km/h" color="stroke-sky-400" />
-          <Line points={series("power_kw")} label="Power (− regen)" unit="kW" color="stroke-amber-400" />
-          <Line points={series("soc")} label="Battery" unit="%" color="stroke-emerald-400" />
-        </div>
-      </Card>
+      <DriveExplorer points={track} timeZone={TIMEZONE} locale={LOCALE_CODE} />
     </div>
   );
 }
