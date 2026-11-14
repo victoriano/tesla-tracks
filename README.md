@@ -5,6 +5,8 @@ A lightweight, modern alternative to TeslaMate: no polling, no Postgres, no Graf
 your server only while it is awake, data lands in **Parquet** files, **DuckDB** turns them into drives and
 charges, and a small **Next.js** dashboard shows them.
 
+**[Live demo → tracks.victoriano.me](https://tracks.victoriano.me)** (made-up data for a fictional car; no login needed)
+
 ```mermaid
 flowchart LR
   Car[Tesla] -- mTLS :4443 --> FT[fleet-telemetry<br/>Tesla's official server]
