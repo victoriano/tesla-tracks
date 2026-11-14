@@ -132,3 +132,26 @@ export async function dailyKm(days = 30): Promise<{ label: string; value: number
   );
   return rows.map((r) => ({ label: r.day, value: Number(r.km) }));
 }
+
+export type TireRow = { ms: number; fl: number | null; fr: number | null; rl: number | null; rr: number | null };
+
+/** Tire pressures (bar) over the last `days`, plus the reading just before the window so lines start at the edge. */
+export async function tires(days = 30): Promise<TireRow[]> {
+  const t = table("tires");
+  if (!t) return [];
+  const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+  const rows = await query<TireRow>(
+    `WITH w AS (SELECT * FROM '${t}' WHERE ts >= now() - INTERVAL ${Number(days)} DAY),
+          prev AS (SELECT * FROM '${t}' WHERE ts < now() - INTERVAL ${Number(days)} DAY ORDER BY ts DESC LIMIT 1)
+     SELECT epoch_ms(ts) AS ms, fl_bar AS fl, fr_bar AS fr, rl_bar AS rl, rr_bar AS rr
+     FROM (SELECT * FROM prev UNION ALL SELECT * FROM w) ORDER BY ts`,
+  );
+  // epoch_ms comes back as a string (BIGINT): make every field a number
+  return rows.map((r) => ({ ms: Number(r.ms), fl: n(r.fl), fr: n(r.fr), rl: n(r.rl), rr: n(r.rr) }));
+}
+
+/** Current time as seen by the database (keeps render functions pure). */
+export async function nowMs(): Promise<number> {
+  const [r] = await query<{ ms: number }>("SELECT epoch_ms(now()) AS ms");
+  return Number(r.ms);
+}

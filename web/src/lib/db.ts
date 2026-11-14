@@ -15,7 +15,7 @@ function connection(): Promise<DuckDBConnection> {
 }
 
 /** Path to a derived Parquet table, or null if the ingester has not produced it yet. */
-export function table(name: "drives" | "charges" | "positions"): string | null {
+export function table(name: "drives" | "charges" | "positions" | "tires"): string | null {
   const file = path.join(DATA_DIR, "derived", `${name}.parquet`);
   return fs.existsSync(file) ? file.replaceAll("'", "''") : null;
 }

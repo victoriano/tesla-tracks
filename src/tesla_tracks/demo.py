@@ -72,6 +72,8 @@ class Car:
         self.odo_mi = 8000.0
         self.lat, self.lon = home
         self.rows: list[dict] = []
+        # cold tire pressures at 20 °C (bar); the rear right one has a slow leak
+        self.tires = {"Fl": 2.9, "Fr": 2.9, "Rl": 2.88, "Rr": 2.9}
 
     @property
     def soc(self) -> float:
@@ -85,6 +87,19 @@ class Car:
                 self.rows.append(_row(t, k, v))
 
     # -- driving ------------------------------------------------------------------------------
+    def emit_tires(self, t: datetime, outside_c: float, warm: float = 0.0) -> None:
+        """Gay-Lussac: about 0.01 bar per °C; driving warms the tires up by `warm` bar."""
+        for wheel, cold in self.tires.items():
+            p = cold + (outside_c - 20) * 0.01 + warm + self.rnd.uniform(-0.01, 0.01)
+            self.emit(t, **{f"TpmsPressure{wheel}": round(p, 2)})
+
+    def age_tires(self, days: float = 1.0) -> None:
+        self.tires["Rr"] -= 0.006 * days
+        for w in self.tires:
+            self.tires[w] -= 0.0008 * days  # normal permeation
+        if self.tires["Rr"] < 2.55 or (min(self.tires.values()) < 2.75 and self.rnd.random() < 0.05):
+            self.tires = {"Fl": 2.9, "Fr": 2.9, "Rl": 2.9, "Rr": 2.9}  # topped up at a gas station
+
     def drive(self, route: dict, t: datetime, outside_c: float) -> datetime:
         pts = route["points"]
         cum = [0.0]
@@ -95,6 +110,8 @@ class Car:
         wave = traffic
         cruise = 0.0
         self.emit(t, Gear="D", OutsideTemp=round(outside_c, 1), InsideTemp=21.0)
+        self.emit_tires(t, outside_c)
+        tire_marks = {300.0: 0.06, 900.0: 0.12, 1800.0: 0.16}
         s = v = 0.0
         stop_until = 0.0
         next_light = self.rnd.uniform(250, 700)
@@ -134,6 +151,8 @@ class Car:
             s = min(total, s + ds)
             v = v_new
             elapsed += STEP_S
+            if elapsed in tire_marks:
+                self.emit_tires(t, outside_c, warm=tire_marks[elapsed])
             t += timedelta(seconds=STEP_S)
             j = max(0, bisect.bisect_right(cum, s) - 1)
             k = min(j + 1, len(pts) - 1)
@@ -226,6 +245,10 @@ def generate(data_dir: Path, days: int = 30, seed: int = 7) -> int:
     for d in range(days + 1):
         day = start_day + timedelta(days=d)
         outside = 14 + 4 * math.sin(d / 9) + rnd.uniform(-2, 2)
+        car.age_tires()
+        morning = day + tz_offset + timedelta(hours=6)
+        if morning < now:
+            car.emit_tires(morning, outside - 4)  # cold morning reading while parked
         for src, dst, minute in _plan_day(rnd, day):
             t = day + tz_offset + timedelta(minutes=minute) if minute >= 0 else t_free + timedelta(minutes=2)
             t = max(t, t_free + timedelta(minutes=5))

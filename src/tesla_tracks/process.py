@@ -62,6 +62,10 @@ FIELDS = [
     "FastChargerPresent",
     "FastChargerType",
     "ChargeLimitSoc",
+    "TpmsPressureFl",
+    "TpmsPressureFr",
+    "TpmsPressureRl",
+    "TpmsPressureRr",
 ]
 STRING_FIELDS = {"Gear", "DetailedChargeState", "FastChargerType"}
 MOVING_GEARS = {"D", "R", "N"}
@@ -121,6 +125,30 @@ CHARGE_SCHEMA = pa.schema(
         ("end_state", pa.string()),
     ]
 )
+TIRES = {"TpmsPressureFl": "fl", "TpmsPressureFr": "fr", "TpmsPressureRl": "rl", "TpmsPressureRr": "rr"}
+TIRE_SCHEMA = pa.schema(
+    [
+        ("vin", pa.string()),
+        ("ts", pa.timestamp("us", tz="UTC")),
+        ("fl_bar", pa.float64()),
+        ("fr_bar", pa.float64()),
+        ("rl_bar", pa.float64()),
+        ("rr_bar", pa.float64()),
+    ]
+)
+
+
+def to_bar(v):
+    """Tire pressure in bar. Tesla does not document the unit, so accept bar, psi or kPa by magnitude."""
+    if v is None:
+        return None
+    if v > 100:  # kPa
+        return round(v / 100, 3)
+    if v > 10:  # psi
+        return round(v * 0.0689476, 3)
+    return round(v, 3)
+
+
 POSITION_SCHEMA = pa.schema(
     [
         ("drive_id", pa.string()),
@@ -205,6 +233,7 @@ class Tracker:
         self.drives: list[dict] = []
         self.charges: list[dict] = []
         self.positions: list[dict] = []
+        self.tires: list[dict] = []
 
     # -- drives -------------------------------------------------------------------------------
     def _open_drive(self, ts: datetime) -> None:
@@ -376,6 +405,12 @@ class Tracker:
         if disconnected and self.drive and not moving:
             self._close_drive(self.park_since or ts, self.park_state or self.state)
 
+        if any(k in updates for k in TIRES):
+            row = {"vin": self.vin, "ts": ts}
+            for field, wheel in TIRES.items():
+                row[f"{wheel}_bar"] = to_bar(_num(self.state.get(field)))
+            self.tires.append(row)
+
         self.prev_state = dict(self.state)
         self.last_ts = ts
 
@@ -450,13 +485,15 @@ def run(data_dir: Path, now: datetime | None = None) -> dict:
             ts = ts.replace(tzinfo=UTC)
         trackers.setdefault(vin, Tracker(vin)).step(ts, updates, disconnected)
     con.close()
-    drives, charges, positions = [], [], []
+    drives, charges, positions, tires = [], [], [], []
     for tr in trackers.values():
         tr.finish(now)
         drives += tr.drives
         charges += tr.charges
         positions += tr.positions
+        tires += tr.tires
     write_parquet_atomic(pa.Table.from_pylist(drives, schema=DRIVE_SCHEMA), out_dir / "drives.parquet")
     write_parquet_atomic(pa.Table.from_pylist(charges, schema=CHARGE_SCHEMA), out_dir / "charges.parquet")
     write_parquet_atomic(pa.Table.from_pylist(positions, schema=POSITION_SCHEMA), out_dir / "positions.parquet")
-    return {"drives": len(drives), "charges": len(charges), "positions": len(positions)}
+    write_parquet_atomic(pa.Table.from_pylist(tires, schema=TIRE_SCHEMA), out_dir / "tires.parquet")
+    return {"drives": len(drives), "charges": len(charges), "positions": len(positions), "tires": len(tires)}

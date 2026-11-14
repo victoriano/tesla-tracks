@@ -21,5 +21,9 @@
   "FastChargerPresent": { "interval_seconds": 1 },
   "FastChargerType": { "interval_seconds": 60 },
   "ChargeLimitSoc": { "interval_seconds": 300 },
+  "TpmsPressureFl": { "interval_seconds": 300 },
+  "TpmsPressureFr": { "interval_seconds": 300 },
+  "TpmsPressureRl": { "interval_seconds": 300 },
+  "TpmsPressureRr": { "interval_seconds": 300 },
   "Version": { "interval_seconds": 3600 }
 }

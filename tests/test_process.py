@@ -170,3 +170,17 @@ def test_ac_charge_after_dc_charge_does_not_inherit_dc_values():
     assert ac["charger"] == "AC"
     assert ac["max_power_kw"] == 7.0
     assert abs(ac["energy_added_kwh"] - 6.0) < 1e-6  # counter started at 0, first value 1.2
+
+
+def test_tire_pressures_forward_filled_and_converted():
+    from tesla_tracks.process import to_bar
+
+    tr = Tracker(VIN)
+    parked_car(tr)
+    tr.step(at(10), {"TpmsPressureFl": 2.9, "TpmsPressureFr": 2.9, "TpmsPressureRl": 2.85, "TpmsPressureRr": 2.8})
+    tr.step(at(20), {"TpmsPressureRr": 2.6})
+    tr.step(at(30), {"VehicleSpeed": 0.0})  # unrelated update: no tire row
+    assert len(tr.tires) == 2
+    assert tr.tires[1]["fl_bar"] == 2.9 and tr.tires[1]["rr_bar"] == 2.6
+    assert to_bar(42.0) == round(42 * 0.0689476, 3)  # psi
+    assert to_bar(290.0) == 2.9  # kPa
