@@ -20,7 +20,7 @@ async function DemoBanner() {
   return (
     <div className="border-b border-amber-500/30 bg-amber-500/10 px-5 py-2 text-center text-xs text-amber-200">
       Demo with made-up data for a fictional car.{" "}
-      <a href="https://github.com/victoriano/tesla-tracks" className="underline hover:text-white">
+      <a href="/setup" className="underline hover:text-white">
         Run Tesla Tracks with your own Tesla →
       </a>
     </div>
@@ -47,6 +47,7 @@ const nav = [
   { href: "/drives", label: "Drives" },
   { href: "/charges", label: "Charges" },
   { href: "/tires", label: "Tires" },
+  { href: "/setup", label: "Self-host" },
 ];
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

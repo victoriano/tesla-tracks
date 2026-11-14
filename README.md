@@ -7,6 +7,10 @@ charges, and a small **Next.js** dashboard shows them.
 
 **[Live demo → tracks.victoriano.me](https://tracks.victoriano.me)** (made-up data for a fictional car; no login needed)
 
+**Set it up with your AI agent:** give Claude Code, Codex or Cursor the prompt on
+[tracks.victoriano.me/setup](https://tracks.victoriano.me/setup); the agent follows
+[`web/public/agent-setup.md`](web/public/agent-setup.md) and asks you for what it needs.
+
 ```mermaid
 flowchart LR
   Car[Tesla] -- mTLS :4443 --> FT[fleet-telemetry<br/>Tesla's official server]
@@ -138,8 +142,9 @@ Which signals the car sends, and how often, is set in [`telemetry/fields.json`](
 ## Commands
 
 ```
-tesla-tracks keygen | register | login | vehicles | pair-url
-tesla-tracks telemetry-config --vin VIN | telemetry-status VIN | telemetry-delete VIN
+tesla-tracks keygen | register | vehicles | pair-url
+tesla-tracks login [--print-url | --redirect-url URL]   # interactive, or two non-interactive steps for agents
+tesla-tracks telemetry-config --vin VIN [--wait-hours 48] | telemetry-status VIN | telemetry-delete VIN
 tesla-tracks run        # the ingester (what the container runs)
 tesla-tracks process    # recompute drives/charges/positions from raw data
 tesla-tracks compact    # merge small raw files

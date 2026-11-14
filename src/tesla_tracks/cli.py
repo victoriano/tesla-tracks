@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from pathlib import Path
 
 import typer
@@ -58,10 +59,27 @@ def register() -> None:
 
 
 @app.command()
-def login() -> None:
-    """OAuth login as the car owner. Prints a URL; paste back the URL you are redirected to."""
+def login(
+    print_url: bool = typer.Option(False, "--print-url", help="Only print the authorization URL (non-interactive)"),
+    redirect_url: str = typer.Option("", "--redirect-url", help="Finish login with the URL Tesla redirected to"),
+) -> None:
+    """OAuth login as the car owner. Interactive by default; agents can use --print-url then --redirect-url."""
     s = _settings()
+    state_file = s.secrets_dir / "oauth-state"
+    if redirect_url:
+        expected = state_file.read_text().strip() if state_file.exists() else ""
+        if expected and f"state={expected}" not in redirect_url:
+            raise typer.BadParameter("state mismatch: use the URL from the latest --print-url")
+        data = fleet.exchange_code(s, redirect_url)
+        state_file.unlink(missing_ok=True)
+        typer.echo(f"Logged in. Tokens saved to {s.tokens_file} (scopes: {data.get('scope', '?')}).")
+        return
     url, state = fleet.authorize_url(s)
+    if print_url:
+        s.secrets_dir.mkdir(parents=True, exist_ok=True)
+        state_file.write_text(state)
+        typer.echo(url)
+        return
     typer.echo("1. Open this URL, sign in to Tesla and accept the permissions:\n")
     typer.echo(url + "\n")
     typer.echo("2. You'll land on your redirect URI (a 404 page there is fine). Copy the full URL.")
@@ -94,6 +112,9 @@ def telemetry_config(
     chain_file: Path = typer.Option(REPO / "certs" / "fullchain.pem", help="Server chain; intermediates are added"),
     exp_days: int = typer.Option(360, help="Config expiry; re-run before it lapses"),
     dry_run: bool = typer.Option(False, help="Print the config instead of sending it"),
+    wait_hours: float = typer.Option(
+        0, help="If the car lacks the virtual key yet, retry every 10 min for this many hours (pair meanwhile)"
+    ),
 ) -> None:
     """Sign the streaming config with the app key and send it to the car(s)."""
     s = _settings()
@@ -102,7 +123,15 @@ def telemetry_config(
         _print({**config, "ca": f"{config['ca'].count('BEGIN CERTIFICATE')} certificates"})
         return
     token = fleet.sign_config(s, config)
-    _print(fleet.push_telemetry_config(s, vin, token))
+    deadline = time.time() + wait_hours * 3600
+    while True:
+        result = fleet.push_telemetry_config(s, vin, token)
+        _print(result)
+        missing = (result.get("response") or {}).get("skipped_vehicles", {}).get("missing_key") or []
+        if not missing or time.time() > deadline:
+            return
+        typer.echo(f"{len(missing)} car(s) without the virtual key yet; retrying in 10 min (pair it now)...")
+        time.sleep(600)
 
 
 @app.command("telemetry-status")

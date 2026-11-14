@@ -36,6 +36,7 @@ services:
       TT_LOCALE: ${TT_LOCALE:-en-US}
       TT_CURRENCY: ${TT_CURRENCY:-EUR}
       TT_AUTH_LINKS: ${TT_AUTH_LINKS:-0}
+      TT_TIRE_RECOMMENDED_BAR: ${TT_TIRE_RECOMMENDED_BAR:-2.9}
     volumes:
       - ./data:/data:ro
     ports:
@@ -55,6 +56,7 @@ services:
       TT_LOCALE: ${WEB_DEMO_LOCALE:-en-US}
       TT_CURRENCY: ${TT_CURRENCY:-EUR}
       TT_AUTH_LINKS: ${TT_AUTH_LINKS:-0}
+      TT_TIRE_RECOMMENDED_BAR: ${TT_TIRE_RECOMMENDED_BAR:-2.9}
     volumes:
       - ./demo-data:/data:ro
     ports:
