@@ -50,8 +50,9 @@ services:
     environment:
       TT_DATA_DIR: /data
       TT_DEMO: "1"
-      TZ: ${TZ:-UTC}
-      TT_LOCALE: ${TT_LOCALE:-en-US}
+      # the demo car drives around San Francisco
+      TZ: ${WEB_DEMO_TZ:-America/Los_Angeles}
+      TT_LOCALE: ${WEB_DEMO_LOCALE:-en-US}
       TT_CURRENCY: ${TT_CURRENCY:-EUR}
       TT_AUTH_LINKS: ${TT_AUTH_LINKS:-0}
     volumes:

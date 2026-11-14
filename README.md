@@ -36,7 +36,10 @@ cd web && npm install && TT_DATA_DIR=../data npm run dev
 
 Want to show it without exposing your own drives? `deploy/refresh-demo.sh` fills `./demo-data` with made-up drives
 and charges, and `docker compose --profile demo up -d web-demo` serves them on `127.0.0.1:3001` with a demo banner.
-Run the script daily so the dates stay recent.
+Run the script daily so the dates stay recent. The demo car drives real roads around San Francisco: routes in
+`src/tesla_tracks/demo_routes.json` were computed once with [OSRM](https://project-osrm.org) from
+[OpenStreetMap](https://www.openstreetmap.org/copyright) data (© OpenStreetMap contributors, ODbL); rebuild them
+with `uv run scripts/build_demo_routes.py`. Speed, energy and charging come from a simple Model 3 physics model.
 
 ## What you need
 
