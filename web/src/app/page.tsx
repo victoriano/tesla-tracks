@@ -1,31 +1,37 @@
 import { connection } from "next/server";
 import { Bars } from "@/components/charts";
 import RouteMap from "@/components/RouteMap";
+import CarStatusBar from "@/components/CarStatusBar";
 import { CostValue, PricePicker } from "@/components/Cost";
 import { Card, Empty, RowLink, Stat } from "@/components/ui";
-import { dailyKm, drives, recentRoutes, summary } from "@/lib/data";
+import { carStatus, dailyKm, drives, recentRoutes, summary } from "@/lib/data";
 import { CURRENCY, dateTime, duration, fmt, LOCALE_CODE } from "@/lib/format";
 
 export default async function Overview() {
   await connection(); // always read fresh Parquet
-  const [s30, s365, days, latest, routes] = await Promise.all([
+  const [s30, s365, days, latest, routes, status] = await Promise.all([
     summary(30),
     summary(365),
     dailyKm(30),
     drives(8),
     recentRoutes(30),
+    carStatus(),
   ]);
 
   if (!latest.length) {
     return (
+      <div className="space-y-6">
+        {status ? <CarStatusBar s={status} /> : null}
       <Empty>
         No drives yet. Once the car streams to fleet-telemetry and the ingester runs, drives show up here.
       </Empty>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {status ? <CarStatusBar s={status} /> : null}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat label="Distance · 30 d" value={fmt(s30.km, 0, "km")} hint={`${fmt(s365.km, 0, "km")} in 12 months`} />
         <Stat label="Drives · 30 d" value={s30.drives} hint={`${fmt(s30.hours, 1, "h")} driving`} />

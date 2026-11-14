@@ -25,5 +25,7 @@
   "TpmsPressureFr": { "interval_seconds": 300 },
   "TpmsPressureRl": { "interval_seconds": 300 },
   "TpmsPressureRr": { "interval_seconds": 300 },
+  "SentryMode": { "interval_seconds": 1 },
+  "Locked": { "interval_seconds": 1 },
   "Version": { "interval_seconds": 3600 }
 }

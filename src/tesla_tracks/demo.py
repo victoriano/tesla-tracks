@@ -109,7 +109,7 @@ class Car:
         traffic = self.rnd.uniform(0.88, 1.15)  # how free-flowing the roads are today
         wave = traffic
         cruise = 0.0
-        self.emit(t, Gear="D", OutsideTemp=round(outside_c, 1), InsideTemp=21.0)
+        self.emit(t, Gear="D", SentryMode="Off", Locked=1.0, OutsideTemp=round(outside_c, 1), InsideTemp=21.0)
         self.emit_tires(t, outside_c)
         tire_marks = {300.0: 0.06, 900.0: 0.12, 1800.0: 0.16}
         s = v = 0.0
@@ -173,6 +173,9 @@ class Car:
             )
         t += timedelta(seconds=4)
         self.emit(t, VehicleSpeed=0.0, Gear="P")
+        # parked away from home: lock and arm Sentry Mode
+        away = route.get("to") != "home"
+        self.emit(t + timedelta(seconds=40), Locked=1.0, SentryMode="Armed" if away else "Off")
         return t
 
     # -- charging -----------------------------------------------------------------------------

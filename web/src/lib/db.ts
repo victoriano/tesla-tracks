@@ -20,6 +20,12 @@ export function table(name: "drives" | "charges" | "positions" | "tires"): strin
   return fs.existsSync(file) ? file.replaceAll("'", "''") : null;
 }
 
+/** Glob of raw telemetry Parquet files, or null if none were written yet. */
+export function rawTelemetry(): string | null {
+  const dir = path.join(DATA_DIR, "raw", "telemetry");
+  return fs.existsSync(dir) ? `${dir.replaceAll("'", "''")}/**/*.parquet` : null;
+}
+
 export type Row = Record<string, string | number | boolean | null>;
 
 export async function query<T = Row>(sql: string, params: Record<string, string | number> = {}): Promise<T[]> {

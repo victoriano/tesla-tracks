@@ -1,5 +1,5 @@
 import "server-only";
-import { query, table } from "./db";
+import { query, rawTelemetry, table } from "./db";
 import { TIMEZONE } from "./format";
 
 export type Drive = {
@@ -154,4 +154,43 @@ export async function tires(days = 30): Promise<TireRow[]> {
 export async function nowMs(): Promise<number> {
   const [r] = await query<{ ms: number }>("SELECT epoch_ms(now()) AS ms");
   return Number(r.ms);
+}
+
+export type CarStatus = {
+  sentry: string | null; // Off | Idle | Armed | Aware | Panic | Quiet
+  locked: boolean | null;
+  soc: number | null;
+  charge: string | null;
+  lastSeenMs: number | null;
+  nowMs: number;
+};
+
+/** Latest value of a few state signals, straight from raw telemetry. */
+export async function carStatus(): Promise<CarStatus | null> {
+  const g = rawTelemetry();
+  if (!g) return null;
+  try {
+    const rows = await query<{ field: string; num: number | null; str: string | null; ms: number }>(
+      `SELECT field, arg_max(value_num, ts) AS num, arg_max(value_str, ts) AS str, epoch_ms(max(ts)) AS ms
+       FROM read_parquet('${g}', hive_partitioning=false)
+       WHERE field IN ('SentryMode', 'Locked', 'BatteryLevel', 'DetailedChargeState')
+         AND ts >= now() - INTERVAL 30 DAY AND coalesce(value_str, '') <> 'invalid'
+       GROUP BY field`,
+    );
+    const [seen] = await query<{ ms: number | null; now: number }>(
+      `SELECT epoch_ms(max(received_at)) AS ms, epoch_ms(now()) AS now
+       FROM read_parquet('${g}', hive_partitioning=false) WHERE ts >= now() - INTERVAL 30 DAY`,
+    );
+    const by = Object.fromEntries(rows.map((r) => [r.field, r]));
+    return {
+      sentry: by.SentryMode?.str ?? null,
+      locked: by.Locked ? Number(by.Locked.num) === 1 : null,
+      soc: by.BatteryLevel?.num === undefined || by.BatteryLevel?.num === null ? null : Number(by.BatteryLevel.num),
+      charge: by.DetailedChargeState?.str ?? null,
+      lastSeenMs: seen?.ms === null || seen?.ms === undefined ? null : Number(seen.ms),
+      nowMs: Number(seen?.now ?? 0),
+    };
+  } catch {
+    return null; // no raw files yet
+  }
 }
