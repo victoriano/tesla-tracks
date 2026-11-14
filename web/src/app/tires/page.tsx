@@ -32,6 +32,7 @@ export default async function TiresPage({ searchParams }: { searchParams: Promis
   const [rows, end] = await Promise.all([tires(days), nowMs()]);
   if (!rows.length) return <Empty>No tire pressure readings yet.</Empty>;
   const last = rows[rows.length - 1];
+  const anyValue = rows.some((r) => r.fl !== null || r.fr !== null || r.rl !== null || r.rr !== null);
 
   return (
     <div className="space-y-6">
@@ -68,6 +69,11 @@ export default async function TiresPage({ searchParams }: { searchParams: Promis
         })}
       </div>
 
+      {!anyValue ? (
+        <p className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm text-zinc-400">
+          The tire sensors only report once the car is moving: pressures will show up after the next drive.
+        </p>
+      ) : null}
       <TireChart points={rows} bands={BANDS} yMin={REC - 1.4} yMax={REC + 1.0} timeZone={TIMEZONE} locale={LOCALE_CODE} endMs={end} />
       <p className="text-xs text-zinc-500">
         Pressure rises about 0.1–0.2 bar once the tires are warm after driving; compare cold readings with the

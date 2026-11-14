@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { Bars } from "@/components/charts";
 import RouteMap from "@/components/RouteMap";
+import CarNow from "@/components/CarNow";
 import CarStatusBar from "@/components/CarStatusBar";
 import { CostValue, PricePicker } from "@/components/Cost";
 import { Card, Empty, RowLink, Stat } from "@/components/ui";
@@ -22,8 +23,11 @@ export default async function Overview() {
     return (
       <div className="space-y-6">
         {status ? <CarStatusBar s={status} /> : null}
+        {status ? <CarNow s={status} /> : null}
       <Empty>
-        No drives yet. Once the car streams to fleet-telemetry and the ingester runs, drives show up here.
+        {status
+          ? "No drives yet. Your car is connected: the next drive will show up here automatically, with its route, consumption and cost."
+          : "No drives yet. Once the car streams to fleet-telemetry and the ingester runs, drives show up here."}
       </Empty>
       </div>
     );

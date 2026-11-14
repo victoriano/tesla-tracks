@@ -161,6 +161,15 @@ export type CarStatus = {
   locked: boolean | null;
   soc: number | null;
   charge: string | null;
+  rangeKm: number | null;
+  insideC: number | null;
+  outsideC: number | null;
+  odometerKm: number | null;
+  chargeLimit: number | null;
+  energyKwh: number | null;
+  version: string | null;
+  lat: number | null;
+  lon: number | null;
   lastSeenMs: number | null;
   nowMs: number;
 };
@@ -173,7 +182,9 @@ export async function carStatus(): Promise<CarStatus | null> {
     const rows = await query<{ field: string; num: number | null; str: string | null; ms: number }>(
       `SELECT field, arg_max(value_num, ts) AS num, arg_max(value_str, ts) AS str, epoch_ms(max(ts)) AS ms
        FROM read_parquet('${g}', hive_partitioning=false)
-       WHERE field IN ('SentryMode', 'Locked', 'BatteryLevel', 'DetailedChargeState')
+       WHERE field IN ('SentryMode', 'Locked', 'BatteryLevel', 'DetailedChargeState', 'EstBatteryRange', 'InsideTemp',
+                       'OutsideTemp', 'Odometer', 'ChargeLimitSoc', 'EnergyRemaining', 'Version',
+                       'Location.latitude', 'Location.longitude')
          AND ts >= now() - INTERVAL 30 DAY AND coalesce(value_str, '') <> 'invalid'
        GROUP BY field`,
     );
@@ -182,11 +193,22 @@ export async function carStatus(): Promise<CarStatus | null> {
        FROM read_parquet('${g}', hive_partitioning=false) WHERE ts >= now() - INTERVAL 30 DAY`,
     );
     const by = Object.fromEntries(rows.map((r) => [r.field, r]));
+    const n = (f: string) => (by[f]?.num === null || by[f]?.num === undefined ? null : Number(by[f].num));
+    const MI = 1.609344; // telemetry reports miles
     return {
       sentry: by.SentryMode?.str ?? null,
       locked: by.Locked ? Number(by.Locked.num) === 1 : null,
       soc: by.BatteryLevel?.num === undefined || by.BatteryLevel?.num === null ? null : Number(by.BatteryLevel.num),
       charge: by.DetailedChargeState?.str ?? null,
+      rangeKm: n("EstBatteryRange") === null ? null : (n("EstBatteryRange") as number) * MI,
+      insideC: n("InsideTemp"),
+      outsideC: n("OutsideTemp"),
+      odometerKm: n("Odometer") === null ? null : (n("Odometer") as number) * MI,
+      chargeLimit: n("ChargeLimitSoc"),
+      energyKwh: n("EnergyRemaining"),
+      version: by.Version?.str ?? null,
+      lat: n("Location.latitude"),
+      lon: n("Location.longitude"),
       lastSeenMs: seen?.ms === null || seen?.ms === undefined ? null : Number(seen.ms),
       nowMs: Number(seen?.now ?? 0),
     };
