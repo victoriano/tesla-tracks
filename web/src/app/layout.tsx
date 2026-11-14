@@ -36,7 +36,7 @@ async function AuthLink() {
   if (process.env.TT_AUTH_LINKS !== "1") return null;
   const demo = process.env.TT_DEMO === "1";
   return (
-    <a href={demo ? "/login" : "/logout"} className="ml-auto text-sm text-zinc-400 hover:text-zinc-100">
+    <a href={demo ? "/login" : "/logout"} className="text-sm text-zinc-400 hover:text-zinc-100">
       {demo ? "Sign in" : "Sign out"}
     </a>
   );
@@ -53,28 +53,31 @@ const nav = [
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full bg-zinc-950 text-zinc-100">
+      <body className="min-h-full overflow-x-hidden bg-zinc-950 text-zinc-100">
         <Suspense fallback={null}>
           <DemoBanner />
         </Suspense>
         <header className="border-b border-zinc-800/80">
-          <div className="mx-auto flex max-w-6xl items-center gap-8 px-5 py-4">
-            <Link href="/" className="font-semibold tracking-tight">
+          {/* Mobile: brand + sign in on the first row, nav scrolls sideways below. Desktop: one row. */}
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-2 px-4 pt-3 pb-0 md:flex-nowrap md:px-5 md:py-4">
+            <Link href="/" className="order-1 shrink-0 whitespace-nowrap font-semibold tracking-tight">
               <span className="text-red-500">●</span> Tesla Tracks
             </Link>
-            <nav className="flex gap-5 text-sm text-zinc-400">
+            <nav className="order-3 -mx-4 flex w-[calc(100%+2rem)] gap-5 overflow-x-auto px-4 pb-2.5 text-sm whitespace-nowrap text-zinc-400 [scrollbar-width:none] md:order-2 md:mx-0 md:w-auto md:overflow-visible md:p-0">
               {nav.map((n) => (
-                <Link key={n.href} href={n.href} className="hover:text-zinc-100">
+                <Link key={n.href} href={n.href} className="py-1 hover:text-zinc-100">
                   {n.label}
                 </Link>
               ))}
             </nav>
-            <Suspense fallback={null}>
-              <AuthLink />
-            </Suspense>
+            <div className="order-2 ml-auto shrink-0 whitespace-nowrap md:order-3">
+              <Suspense fallback={null}>
+                <AuthLink />
+              </Suspense>
+            </div>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl px-5 py-8">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 py-6 md:px-5 md:py-8">{children}</main>
       </body>
     </html>
   );

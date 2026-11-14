@@ -46,7 +46,7 @@ export default async function SetupPage() {
           <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-400">Paste this to your agent</h2>
           <CopyButton text={prompt} label="Copy prompt" />
         </div>
-        <p className="font-mono text-sm leading-relaxed text-zinc-200">{prompt}</p>
+        <p className="font-mono text-sm leading-relaxed break-words text-zinc-200">{prompt}</p>
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
@@ -86,7 +86,7 @@ export default async function SetupPage() {
           </span>
         </div>
         <article
-          className="guide rounded-xl border border-zinc-800 bg-zinc-900/40 p-6"
+          className="guide rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 md:p-6"
           dangerouslySetInnerHTML={{ __html: html }}
         />
       </section>
