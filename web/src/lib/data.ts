@@ -216,3 +216,95 @@ export async function carStatus(): Promise<CarStatus | null> {
     return null; // no raw files yet
   }
 }
+
+export type Span = { start: number; end: number };
+export type BatteryHistory = {
+  points: { ms: number; soc: number }[];
+  drives: Span[];
+  charges: Span[];
+  sentry: Span[];
+  startMs: number;
+  endMs: number;
+};
+
+/** Battery level (one value per 10 minutes) plus the drive, charge and Sentry Mode periods of the window. */
+export async function batteryHistory(days: number): Promise<BatteryHistory> {
+  const g = rawTelemetry();
+  const [{ now }] = await query<{ now: number }>("SELECT epoch_ms(now()) AS now");
+  const endMs = Number(now);
+  const startMs = endMs - days * 86_400_000;
+  const empty = { points: [], drives: [], charges: [], sentry: [], startMs, endMs };
+  if (!g) return empty;
+  const since = `now() - INTERVAL ${Number(days)} DAY`;
+  try {
+    const pts = await query<{ ms: number; soc: number }>(
+      `SELECT epoch_ms(max(ts)) AS ms, arg_max(value_num, ts) AS soc
+       FROM read_parquet('${g}', hive_partitioning=false)
+       WHERE field = 'BatteryLevel' AND value_num IS NOT NULL AND ts >= ${since}
+       GROUP BY time_bucket(INTERVAL 10 MINUTE, ts) ORDER BY 1`,
+    );
+    const spans = async (name: "drives" | "charges") => {
+      const t = table(name);
+      if (!t) return [];
+      const r = await query<{ s: number; e: number }>(
+        `SELECT epoch_ms(start_ts) AS s, epoch_ms(end_ts) AS e FROM '${t}' WHERE end_ts >= ${since} ORDER BY start_ts`,
+      );
+      return r.map((x) => ({ start: Number(x.s), end: Number(x.e) }));
+    };
+    // Sentry: state changes (plus the last one before the window) -> armed intervals
+    const sm = await query<{ ms: number; v: string }>(
+      `WITH s AS (SELECT ts, value_str AS v FROM read_parquet('${g}', hive_partitioning=false)
+                  WHERE field = 'SentryMode' AND value_str IS NOT NULL AND value_str <> 'invalid')
+       SELECT epoch_ms(ts) AS ms, v FROM (
+         SELECT * FROM s WHERE ts >= ${since}
+         UNION ALL (SELECT * FROM s WHERE ts < ${since} ORDER BY ts DESC LIMIT 1)) ORDER BY ts`,
+    );
+    const sentry: Span[] = [];
+    let open: number | null = null;
+    for (const r of sm) {
+      const on = !["Off", "Unknown"].includes(r.v);
+      const t = Math.max(Number(r.ms), startMs);
+      if (on && open === null) open = t;
+      if (!on && open !== null) {
+        sentry.push({ start: open, end: t });
+        open = null;
+      }
+    }
+    if (open !== null) sentry.push({ start: open, end: endMs });
+    return {
+      points: pts.map((p) => ({ ms: Number(p.ms), soc: Number(p.soc) })),
+      drives: await spans("drives"),
+      charges: await spans("charges"),
+      sentry,
+      startMs,
+      endMs,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+/** Battery lost while parked (not driving, not charging), split by Sentry Mode, in % per day. */
+export function parkedDrain(h: BatteryHistory) {
+  const inside = (t: number, spans: Span[]) => spans.some((s) => t >= s.start - 60_000 && t <= s.end + 60_000);
+  const acc = { on: { pct: 0, ms: 0 }, off: { pct: 0, ms: 0 } };
+  for (let i = 1; i < h.points.length; i++) {
+    const a = h.points[i - 1];
+    const b = h.points[i];
+    const gap = b.ms - a.ms;
+    const drop = a.soc - b.soc;
+    if (gap > 12 * 3_600_000 || drop < -0.05) continue; // data gap, or it charged
+    const overlaps = (spans: Span[]) => spans.some((s) => s.start - 60_000 < b.ms && s.end + 60_000 > a.ms);
+    if (overlaps(h.drives) || overlaps(h.charges)) continue; // only purely parked stretches
+    const k = inside((a.ms + b.ms) / 2, h.sentry) ? acc.on : acc.off;
+    k.pct += Math.max(0, drop);
+    k.ms += gap;
+  }
+  const rate = (x: { pct: number; ms: number }) => (x.ms >= 3_600_000 ? (x.pct / x.ms) * 86_400_000 : null);
+  return {
+    sentryOn: rate(acc.on),
+    sentryOff: rate(acc.off),
+    total: acc.on.pct + acc.off.pct,
+    hours: (acc.on.ms + acc.off.ms) / 3_600_000,
+  };
+}

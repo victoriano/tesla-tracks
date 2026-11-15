@@ -74,6 +74,16 @@ class Car:
         self.rows: list[dict] = []
         # cold tire pressures at 20 °C (bar); the rear right one has a slow leak
         self.tires = {"Fl": 2.9, "Fr": 2.9, "Rl": 2.88, "Rr": 2.9}
+        self.sentry = False
+
+    def idle(self, t0: datetime, t1: datetime) -> None:
+        """Parked: the battery slowly drains (a lot faster with Sentry Mode on), reported hourly."""
+        watts = 220.0 if self.sentry else 25.0
+        t = t0 + timedelta(hours=1)
+        while t < t1:
+            self.energy -= watts * self.rnd.uniform(0.85, 1.15) / 1000
+            self.emit(t, BatteryLevel=round(self.soc, 1), EnergyRemaining=round(self.energy, 3))
+            t += timedelta(hours=1)
 
     @property
     def soc(self) -> float:
@@ -176,6 +186,7 @@ class Car:
         # parked away from home: lock and arm Sentry Mode
         away = route.get("to") != "home"
         self.emit(t + timedelta(seconds=40), Locked=1.0, SentryMode="Armed" if away else "Off")
+        self.sentry = away
         return t
 
     # -- charging -----------------------------------------------------------------------------
@@ -260,17 +271,20 @@ def generate(data_dir: Path, days: int = 30, seed: int = 7) -> int:
             route = routes.get((src, dst))
             if not route:
                 continue
+            car.idle(t_free, t)
             t_free = car.drive(route, t, outside + (3 if 11 <= minute // 60 <= 17 else 0))
             if dst == "supercharger":
                 t_free = car.charge(t_free + timedelta(minutes=1), dc=True, target_soc=rnd.uniform(75, 82))
         # overnight home charging when the battery is getting low
-        night = day + tz_offset + timedelta(hours=23, minutes=30)
-        if car.soc < 55 and night < now and night > t_free:
+        night = max(day + tz_offset + timedelta(hours=23, minutes=30), t_free + timedelta(minutes=10))
+        if car.soc < 62 and night < now:
+            car.idle(t_free, night)
             t_free = car.charge(night, dc=False, target_soc=80)
         if len(car.rows) > 50_000:
             writer.add("telemetry", car.rows)
             total += len(car.rows)
             car.rows = []
+    car.idle(t_free, now)
     writer.add("telemetry", car.rows)
     total += len(car.rows)
     writer.close()

@@ -46,6 +46,7 @@ const nav = [
   { href: "/", label: "Overview" },
   { href: "/drives", label: "Drives" },
   { href: "/charges", label: "Charges" },
+  { href: "/battery", label: "Battery" },
   { href: "/tires", label: "Tires" },
   { href: "/setup", label: "Self-host" },
 ];
