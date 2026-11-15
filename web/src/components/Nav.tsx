@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BatteryMedium, CircleDot, LayoutDashboard, Route, Server, Zap, type LucideIcon } from "lucide-react";
+import { BatteryMedium, CircleDot, LayoutDashboard, Route, Zap, type LucideIcon } from "lucide-react";
 
 type Item = { href: string; label: string; icon: LucideIcon };
 
@@ -13,7 +13,6 @@ export const NAV: Item[] = [
   { href: "/charges", label: "Charges", icon: Zap },
   { href: "/tires", label: "Tires", icon: CircleDot },
 ];
-export const SELF_HOST: Item = { href: "/setup", label: "Self-host", icon: Server };
 
 function useActive() {
   const path = usePathname();
@@ -25,7 +24,7 @@ export function TopNav() {
   const isActive = useActive();
   return (
     <nav className="hidden items-center gap-1 rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-1 md:flex">
-      {[...NAV, SELF_HOST].map(({ href, label, icon: Icon }) => {
+      {NAV.map(({ href, label, icon: Icon }) => {
         const active = isActive(href);
         return (
           <Link
@@ -42,21 +41,6 @@ export function TopNav() {
         );
       })}
     </nav>
-  );
-}
-
-/** Mobile: compact Self-host icon for the header. */
-export function SelfHostIcon() {
-  const isActive = useActive();
-  const { href, label, icon: Icon } = SELF_HOST;
-  return (
-    <Link
-      href={href}
-      aria-label={label}
-      className={`rounded-lg p-2 md:hidden ${isActive(href) ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-zinc-100"}`}
-    >
-      <Icon className="h-5 w-5" />
-    </Link>
   );
 }
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { BottomNav, SelfHostIcon, TopNav } from "@/components/Nav";
+import { BottomNav, TopNav } from "@/components/Nav";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -32,6 +32,21 @@ async function DemoBanner() {
  * Optional sign-in / sign-out links for a reverse proxy that serves the demo to visitors and the real
  * dashboard after login (see deploy/Caddyfile). Enabled with TT_AUTH_LINKS=1.
  */
+/** Call to action shown only on the public demo: set up your own instance. */
+async function GetYourOwn() {
+  await connection();
+  if (process.env.TT_DEMO !== "1") return null;
+  return (
+    <Link
+      href="/setup"
+      className="mr-1 rounded-lg bg-red-500 px-3 py-1.5 text-sm font-medium text-white shadow-sm shadow-red-500/20 hover:bg-red-400"
+    >
+      <span className="hidden sm:inline">Get your own →</span>
+      <span className="sm:hidden">Get yours</span>
+    </Link>
+  );
+}
+
 async function AuthLink() {
   await connection();
   if (process.env.TT_AUTH_LINKS !== "1") return null;
@@ -60,7 +75,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </Link>
             <TopNav />
             <div className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap">
-              <SelfHostIcon />
+              <Suspense fallback={null}>
+                <GetYourOwn />
+              </Suspense>
               <Suspense fallback={null}>
                 <AuthLink />
               </Suspense>
