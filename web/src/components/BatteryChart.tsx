@@ -88,7 +88,7 @@ export default function BatteryChart({ h, timeZone, locale }: { h: BatteryHistor
         {ticks.map((t, i) => (
           <span
             key={t}
-            className="absolute whitespace-nowrap"
+            className={`absolute whitespace-nowrap ${i % 2 ? "hidden md:inline" : ""}`}
             style={{ left: `${(i / 4) * 100}%`, transform: i === 0 ? "none" : i === 4 ? "translateX(-100%)" : "translateX(-50%)" }}
           >
             {fmt.format(t)}

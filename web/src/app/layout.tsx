@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { BottomNav, SelfHostIcon, TopNav } from "@/components/Nav";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -36,20 +37,11 @@ async function AuthLink() {
   if (process.env.TT_AUTH_LINKS !== "1") return null;
   const demo = process.env.TT_DEMO === "1";
   return (
-    <a href={demo ? "/login" : "/logout"} className="text-sm text-zinc-400 hover:text-zinc-100">
+    <a href={demo ? "/login" : "/logout"} className="rounded-lg border border-zinc-800 px-3 py-1.5 text-sm text-zinc-300 hover:border-zinc-600 hover:text-white">
       {demo ? "Sign in" : "Sign out"}
     </a>
   );
 }
-
-const nav = [
-  { href: "/", label: "Overview" },
-  { href: "/drives", label: "Drives" },
-  { href: "/charges", label: "Charges" },
-  { href: "/battery", label: "Battery" },
-  { href: "/tires", label: "Tires" },
-  { href: "/setup", label: "Self-host" },
-];
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -58,27 +50,25 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={null}>
           <DemoBanner />
         </Suspense>
-        <header className="border-b border-zinc-800/80">
-          {/* Mobile: brand + sign in on the first row, nav scrolls sideways below. Desktop: one row. */}
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-2 px-4 pt-3 pb-0 md:flex-nowrap md:px-5 md:py-4">
-            <Link href="/" className="order-1 shrink-0 whitespace-nowrap font-semibold tracking-tight">
-              <span className="text-red-500">●</span> Tesla Tracks
+        <header className="sticky top-0 z-30 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3 md:px-5">
+            <Link href="/" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight whitespace-nowrap">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/15 text-red-400">
+                <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+              </span>
+              Tesla Tracks
             </Link>
-            <nav className="order-3 -mx-4 flex w-[calc(100%+2rem)] gap-5 overflow-x-auto px-4 pb-2.5 text-sm whitespace-nowrap text-zinc-400 [scrollbar-width:none] md:order-2 md:mx-0 md:w-auto md:overflow-visible md:p-0">
-              {nav.map((n) => (
-                <Link key={n.href} href={n.href} className="py-1 hover:text-zinc-100">
-                  {n.label}
-                </Link>
-              ))}
-            </nav>
-            <div className="order-2 ml-auto shrink-0 whitespace-nowrap md:order-3">
+            <TopNav />
+            <div className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap">
+              <SelfHostIcon />
               <Suspense fallback={null}>
                 <AuthLink />
               </Suspense>
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-6 md:px-5 md:py-8">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 pt-6 pb-28 md:px-5 md:py-8">{children}</main>
+        <BottomNav />
       </body>
     </html>
   );
