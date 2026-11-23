@@ -95,8 +95,16 @@ export default function DriveExplorer({
   const mapRef = useRef<MapLibre | null>(null);
   const [ready, setReady] = useState(false);
 
-  // Create the map once.
+  // Recreate the map only when the drive itself changes (not on every re-render with a new array).
+  const trackKey = points.length ? `${points.length}:${points[0].t}:${points[points.length - 1].t}` : "";
+  const pointsRef = useRef(points);
   useEffect(() => {
+    pointsRef.current = points; // effects run in order: this one runs before the map effect below
+  }, [points]);
+
+  // Create the map once per drive.
+  useEffect(() => {
+    const points = pointsRef.current;
     if (!mapDiv.current || points.length < 2) return;
     const map = new MapLibre({ container: mapDiv.current, style: STYLE, attributionControl: { compact: true } });
     mapRef.current = map;
@@ -157,17 +165,18 @@ export default function DriveExplorer({
       map.remove();
       mapRef.current = null;
     };
-  }, [points]);
+  }, [trackKey]);
 
   useEffect(() => {
-    if (!ready || !mapRef.current) return;
-    (mapRef.current.getSource("segments") as GeoJSONSource).setData(colored.geojson);
+    const src = ready ? (mapRef.current?.getSource("segments") as GeoJSONSource | undefined) : undefined;
+    src?.setData(colored.geojson);
   }, [ready, colored]);
 
   useEffect(() => {
-    if (!ready || !mapRef.current) return;
+    const src = ready ? (mapRef.current?.getSource("hover") as GeoJSONSource | undefined) : undefined;
+    if (!src) return;
     const p = hover !== null ? points[hover] : null;
-    (mapRef.current.getSource("hover") as GeoJSONSource).setData({
+    src.setData({
       type: "FeatureCollection",
       features: p ? [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [p.lon, p.lat] } }] : [],
     });
