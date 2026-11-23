@@ -1,5 +1,7 @@
 import { connection } from "next/server";
 import { CostValue, PricePicker } from "@/components/Cost";
+import DriverSelect from "@/components/DriverSelect";
+import { driverOptions, readDrivers } from "@/lib/drivers";
 import { Badge, Empty } from "@/components/ui";
 import { drives } from "@/lib/data";
 import { CURRENCY, dateTime, duration, fmt, LOCALE_CODE, time } from "@/lib/format";
@@ -8,6 +10,8 @@ import Link from "next/link";
 export default async function DrivesPage() {
   await connection();
   const rows = await drives(1000);
+  const who = readDrivers();
+  const options = driverOptions();
   if (!rows.length) return <Empty>No drives yet.</Empty>;
 
   return (
@@ -21,6 +25,7 @@ export default async function DrivesPage() {
           <tr>
             <th className="px-4 py-3">Start</th>
             <th className="px-4 py-3">End</th>
+            <th className="px-4 py-3">Driver</th>
             <th className="px-4 py-3 text-right">Distance</th>
             <th className="px-4 py-3 text-right">Duration</th>
             <th className="px-4 py-3 text-right">Battery</th>
@@ -41,6 +46,9 @@ export default async function DrivesPage() {
                 {d.in_progress ? <Badge tone="green">driving</Badge> : null}
               </td>
               <td className="px-4 py-2.5 text-zinc-400">{time(d.end_ms)}</td>
+              <td className="px-4 py-2">
+                <DriverSelect driveId={d.drive_id} value={who[d.drive_id] ?? "Unknown"} options={options} />
+              </td>
               <td className="px-4 py-2.5 text-right">{fmt(d.distance_km, 1, "km")}</td>
               <td className="px-4 py-2.5 text-right text-zinc-400">{duration(d.duration_min)}</td>
               <td className="px-4 py-2.5 text-right text-zinc-400">

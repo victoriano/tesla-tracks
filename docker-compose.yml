@@ -30,6 +30,7 @@ services:
   # Dashboard. Bound to localhost: put your reverse proxy (and auth!) in front of it.
   web:
     build: ./web
+    user: "${TT_UID:-1000}:${TT_GID:-1000}"
     environment:
       TT_DATA_DIR: /data
       TZ: ${TZ:-UTC}
@@ -37,8 +38,11 @@ services:
       TT_CURRENCY: ${TT_CURRENCY:-EUR}
       TT_AUTH_LINKS: ${TT_AUTH_LINKS:-0}
       TT_TIRE_RECOMMENDED_BAR: ${TT_TIRE_RECOMMENDED_BAR:-2.9}
+      TT_DRIVERS: ${TT_DRIVERS:-}
+      TT_ANNOTATIONS_DIR: /annotations
     volumes:
       - ./data:/data:ro
+      - ./annotations:/annotations
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     restart: unless-stopped
@@ -51,6 +55,7 @@ services:
     environment:
       TT_DATA_DIR: /data
       TT_DEMO: "1"
+      TT_DRIVERS: ${WEB_DEMO_DRIVERS:-Alex,Sam}
       # the demo car drives around San Francisco
       TZ: ${WEB_DEMO_TZ:-America/Los_Angeles}
       TT_LOCALE: ${WEB_DEMO_LOCALE:-en-US}

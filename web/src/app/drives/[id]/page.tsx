@@ -3,6 +3,8 @@ import { connection } from "next/server";
 import Link from "next/link";
 import { CostValue, PricePicker } from "@/components/Cost";
 import DriveExplorer from "@/components/DriveExplorer";
+import DriverSelect from "@/components/DriverSelect";
+import { driverOptions, readDrivers } from "@/lib/drivers";
 import { Badge, Stat } from "@/components/ui";
 import { drive, positions } from "@/lib/data";
 import { dateTime, duration, fmt, CURRENCY, LOCALE_CODE, time, TIMEZONE } from "@/lib/format";
@@ -31,9 +33,12 @@ export default async function DrivePage({ params }: { params: Promise<{ id: stri
           <Link href="/drives" className="text-sm text-zinc-500 hover:text-zinc-300">
             ← Drives
           </Link>
-          <h1 className="mt-1 text-xl font-semibold">
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <h1 className="text-xl font-semibold">
             {dateTime(d.start_ms)} – {time(d.end_ms)} {d.in_progress ? <Badge tone="green">driving</Badge> : null}
           </h1>
+            <DriverSelect driveId={d.drive_id} value={readDrivers()[d.drive_id] ?? "Unknown"} options={driverOptions()} size="md" />
+          </div>
         </div>
         <div className="text-sm text-zinc-500">
           Odometer {fmt(d.start_odometer_km, 0)} → {fmt(d.end_odometer_km, 0, "km")}

@@ -6,6 +6,7 @@ import CarStatusBar from "@/components/CarStatusBar";
 import { CostValue, PricePicker } from "@/components/Cost";
 import { Card, Empty, RowLink, Stat } from "@/components/ui";
 import { carStatus, dailyKm, drives, recentRoutes, summary } from "@/lib/data";
+import { readDrivers } from "@/lib/drivers";
 import { CURRENCY, dateTime, duration, fmt, LOCALE_CODE } from "@/lib/format";
 
 export default async function Overview() {
@@ -19,6 +20,7 @@ export default async function Overview() {
     carStatus(),
   ]);
 
+  const who = readDrivers();
   if (!latest.length) {
     return (
       <div className="space-y-6">
@@ -67,7 +69,12 @@ export default async function Overview() {
           {latest.map((d) => (
             <RowLink key={d.drive_id} href={`/drives/${d.drive_id}`}>
               <div className="flex items-center justify-between gap-4 text-sm">
-                <span className="text-zinc-300">{dateTime(d.start_ms)}</span>
+                <span className="flex items-center gap-2 text-zinc-300">
+                  {dateTime(d.start_ms)}
+                  {who[d.drive_id] ? (
+                    <span className="rounded-md bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-300">{who[d.drive_id]}</span>
+                  ) : null}
+                </span>
                 <span className="flex gap-6 text-zinc-400">
                   <span className="w-20 text-right text-zinc-100">{fmt(d.distance_km, 1, "km")}</span>
                   <span className="hidden w-20 text-right sm:inline">{duration(d.duration_min)}</span>

@@ -5,6 +5,7 @@
 secrets/
 certs/
 data/
+annotations/
 demo-data*/
 /public/
 *.pem
