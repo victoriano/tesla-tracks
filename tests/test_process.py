@@ -184,3 +184,25 @@ def test_tire_pressures_forward_filled_and_converted():
     assert tr.tires[1]["fl_bar"] == 2.9 and tr.tires[1]["rr_bar"] == 2.6
     assert to_bar(42.0) == round(42 * 0.0689476, 3)  # psi
     assert to_bar(290.0) == 2.9  # kPa
+
+
+def test_driving_style_events_and_regen():
+    tr = Tracker(VIN)
+    parked_car(tr)
+    tr.step(at(10), {"Gear": "D", "VehicleSpeed": 0.0, "GpsHeading": 0.0, "PackVoltage": 400.0, "PackCurrent": 0.0})
+    # harsh launch: 0 -> 36 km/h (22.4 mph) in 2 s = 5 m/s²
+    tr.step(at(12), {"VehicleSpeed": 22.37, "PackCurrent": 150.0})
+    tr.step(at(14), {"VehicleSpeed": 24.0})
+    # 90° turn at 36 km/h in 4 s: 10 m/s × (π/2)/4 ≈ 3.9 m/s² lateral
+    tr.step(at(16), {"GpsHeading": 0.0})
+    tr.step(at(20), {"GpsHeading": 90.0, "PackCurrent": -100.0})
+    # hard stop: 24 mph (10.7 m/s) -> 0 in 2 s
+    tr.step(at(30), {"VehicleSpeed": 24.0})
+    tr.step(at(32), {"VehicleSpeed": 0.0, "PackCurrent": 0.0})
+    tr.step(at(34), {"Gear": "P"})
+    tr.finish(at(5000))
+    d = tr.drives[0]
+    assert d["harsh_accel"] == 1
+    assert d["harsh_brake"] == 1
+    assert d["sharp_turns"] == 1
+    assert d["traction_kwh"] > 0 and d["regen_kwh"] > 0

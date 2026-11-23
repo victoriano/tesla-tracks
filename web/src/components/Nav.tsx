@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BatteryMedium, CircleDot, LayoutDashboard, Route, Zap, type LucideIcon } from "lucide-react";
+import { BatteryMedium, CircleDot, LayoutDashboard, Route, Users, Zap, type LucideIcon } from "lucide-react";
 
 type Item = { href: string; label: string; icon: LucideIcon };
 
@@ -12,6 +12,7 @@ export const NAV: Item[] = [
   { href: "/battery", label: "Battery", icon: BatteryMedium },
   { href: "/charges", label: "Charges", icon: Zap },
   { href: "/tires", label: "Tires", icon: CircleDot },
+  { href: "/drivers", label: "Drivers", icon: Users },
 ];
 
 function useActive() {
@@ -49,7 +50,7 @@ export function BottomNav() {
   const isActive = useActive();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-800/80 bg-zinc-950/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
-      <div className="mx-auto grid max-w-md grid-cols-5">
+      <div className="mx-auto grid max-w-md grid-cols-6">
         {NAV.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           return (
@@ -57,7 +58,7 @@ export function BottomNav() {
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${
+              className={`flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium ${
                 active ? "text-white" : "text-zinc-500"
               }`}
             >

@@ -35,6 +35,12 @@ CAPACITY_KWH = 57.5
 PACK_V = 355.0
 
 STEP_S = 3.0  # telemetry sample period in the simulation
+
+# Two fictional drivers with different habits, so the driver comparison has something to show.
+STYLES = {
+    "Alex": {"accel": 2.7, "hwy_accel": 1.0, "decel": 3.3, "pace": 1.07, "smooth": 0.3, "regen": 0.55, "lat": 3.8},
+    "Sam": {"accel": 1.5, "hwy_accel": 0.4, "decel": 1.9, "pace": 0.97, "smooth": 0.1, "regen": 0.65, "lat": 1.1},
+}
 MAX_ACCEL = 1.8  # m/s²
 MAX_DECEL = 2.5
 
@@ -110,15 +116,24 @@ class Car:
         if self.tires["Rr"] < 2.55 or (min(self.tires.values()) < 2.75 and self.rnd.random() < 0.05):
             self.tires = {"Fl": 2.9, "Fr": 2.9, "Rl": 2.9, "Rr": 2.9}  # topped up at a gas station
 
-    def drive(self, route: dict, t: datetime, outside_c: float) -> datetime:
+    def drive(self, route: dict, t: datetime, outside_c: float, style: dict | None = None) -> datetime:
+        st = style or STYLES["Sam"]
         pts = route["points"]
         cum = [0.0]
         for i in range(1, len(pts)):
             cum.append(cum[-1] + _haversine_m(pts[i - 1], pts[i]))
         total = cum[-1]
+        # speed limit at each vertex from the turn angle (v = sqrt(a_lat * r), r ≈ shorter leg / angle)
+        vturn = [99.0] * len(pts)
+        for i in range(1, len(pts) - 1):
+            ang = abs((_bearing(pts[i], pts[i + 1]) - _bearing(pts[i - 1], pts[i]) + 180) % 360 - 180)
+            if ang > 5:
+                leg = max(5.0, min(cum[i] - cum[i - 1], cum[i + 1] - cum[i]))
+                vturn[i] = max(3.0, math.sqrt(st["lat"] * leg / math.radians(ang)))
         traffic = self.rnd.uniform(0.88, 1.15)  # how free-flowing the roads are today
         wave = traffic
         cruise = 0.0
+        last_heading = round(_bearing(pts[0], pts[min(1, len(pts) - 1)]), 0)
         self.emit(t, Gear="D", SentryMode="Off", Locked=1.0, OutsideTemp=round(outside_c, 1), InsideTemp=21.0)
         self.emit_tires(t, outside_c)
         tire_marks = {300.0: 0.06, 900.0: 0.12, 1800.0: 0.16}
@@ -132,7 +147,7 @@ class Car:
             # slow "traffic waves": a smooth random factor around today's traffic level
             wave += (traffic - wave) * 0.02 + self.rnd.gauss(0, 0.004)
             wave = min(1.22, max(0.35, wave))
-            target = seg_speed * wave
+            target = seg_speed * wave * st["pace"]
             urban = seg_speed < 15
             # traffic lights / stop signs in town
             if urban and s >= next_light and stop_until <= elapsed:
@@ -141,21 +156,26 @@ class Car:
             elif not urban:
                 next_light = max(next_light, s + 300)
             # drivers do not jump to every new speed limit: low-pass the cruise target
-            cruise += (target - cruise) * 0.15
+            cruise += (target - cruise) * st["smooth"]
             target = cruise
             if stop_until > elapsed:
                 target = 0.0
+            # slow down for the next bends (look ahead ~150 m)
+            k = i + 1
+            while k < len(pts) and cum[k] - s < 150:
+                target = min(target, math.sqrt(vturn[k] ** 2 + 2 * st["decel"] * 0.6 * max(0.0, cum[k] - s)))
+                k += 1
             # brake for the end of the route
-            target = min(target, math.sqrt(max(0.0, 2 * MAX_DECEL * 0.8 * (total - s))))
-            max_up = MAX_ACCEL if v < 15 else 0.6  # gentle on the highway
-            dv = max(-MAX_DECEL * STEP_S, min(max_up * STEP_S, target - v))
+            target = min(target, math.sqrt(max(0.0, 2 * st["decel"] * 0.8 * (total - s))))
+            max_up = st["accel"] if v < 15 else st["hwy_accel"]
+            dv = max(-st["decel"] * STEP_S, min(max_up * STEP_S, target - v))
             v_new = max(0.0, v + dv)
             accel = (v_new - v) / STEP_S
             v_avg = (v + v_new) / 2
             ds = v_avg * STEP_S
             # power at the wheels -> battery
             p_wheels = MASS_KG * accel * v_avg + 0.5 * RHO * CDA * v_avg**3 + CRR * MASS_KG * 9.81 * v_avg
-            p_batt = (p_wheels / DRIVE_EFF if p_wheels >= 0 else p_wheels * REGEN_EFF) / 1000 + AUX_KW
+            p_batt = (p_wheels / DRIVE_EFF if p_wheels >= 0 else p_wheels * st["regen"]) / 1000 + AUX_KW
             self.energy -= p_batt * STEP_S / 3600
             self.odo_mi += ds / 1000 * KM_TO_MI
             s = min(total, s + ds)
@@ -164,12 +184,15 @@ class Car:
             if elapsed in tire_marks:
                 self.emit_tires(t, outside_c, warm=tire_marks[elapsed])
             t += timedelta(seconds=STEP_S)
+            prev_pos = (self.lon, self.lat)
             j = max(0, bisect.bisect_right(cum, s) - 1)
             k = min(j + 1, len(pts) - 1)
             f = 0.0 if k == j else (s - cum[j]) / max(1e-6, cum[k] - cum[j])
             lon = pts[j][0] + (pts[k][0] - pts[j][0]) * f
             lat = pts[j][1] + (pts[k][1] - pts[j][1]) * f
             self.lat, self.lon = lat, lon
+            if ds > 0.5:
+                last_heading = round(_bearing(prev_pos, (lon, lat)), 0)
             self.emit(
                 t,
                 VehicleSpeed=round(v * 3.6 * MPH, 1),
@@ -178,7 +201,7 @@ class Car:
                 BatteryLevel=round(self.soc, 1),
                 PackVoltage=round(PACK_V - p_batt * 0.15, 1),
                 PackCurrent=round(p_batt * 1000 / PACK_V, 1),
-                GpsHeading=round(_bearing(pts[j], pts[k]), 0),
+                GpsHeading=last_heading,
                 **{"Location.latitude": round(lat, 6), "Location.longitude": round(lon, 6)},
             )
         t += timedelta(seconds=4)
@@ -256,6 +279,7 @@ def generate(data_dir: Path, days: int = 30, seed: int = 7) -> int:
     now = datetime.now(UTC)
     t_free = start_day
     total = 0
+    drivers: dict[str, str] = {}
     for d in range(days + 1):
         day = start_day + timedelta(days=d)
         outside = 14 + 4 * math.sin(d / 9) + rnd.uniform(-2, 2)
@@ -272,7 +296,11 @@ def generate(data_dir: Path, days: int = 30, seed: int = 7) -> int:
             if not route:
                 continue
             car.idle(t_free, t)
-            t_free = car.drive(route, t, outside + (3 if 11 <= minute // 60 <= 17 else 0))
+            weekday = day.weekday() < 5
+            commute = weekday and ("office" in (src, dst) or dst == "supercharger" or src == "supercharger")
+            who = "Alex" if commute else ("Sam" if rnd.random() < 0.7 else "Alex")
+            drivers[f"{VIN[-6:]}-{int(t.timestamp())}"] = who
+            t_free = car.drive(route, t, outside + (3 if 11 <= minute // 60 <= 17 else 0), STYLES[who])
             if dst == "supercharger":
                 t_free = car.charge(t_free + timedelta(minutes=1), dc=True, target_soc=rnd.uniform(75, 82))
         # overnight home charging when the battery is getting low
@@ -285,6 +313,9 @@ def generate(data_dir: Path, days: int = 30, seed: int = 7) -> int:
             total += len(car.rows)
             car.rows = []
     car.idle(t_free, now)
+    ann = data_dir / "annotations"
+    ann.mkdir(parents=True, exist_ok=True)
+    (ann / "drivers.json").write_text(json.dumps(drivers, indent=1))
     writer.add("telemetry", car.rows)
     total += len(car.rows)
     writer.close()

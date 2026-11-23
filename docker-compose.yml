@@ -56,6 +56,7 @@ services:
       TT_DATA_DIR: /data
       TT_DEMO: "1"
       TT_DRIVERS: ${WEB_DEMO_DRIVERS:-Alex,Sam}
+      TT_ANNOTATIONS_DIR: /data/annotations  # written by the demo generator
       # the demo car drives around San Francisco
       TZ: ${WEB_DEMO_TZ:-America/Los_Angeles}
       TT_LOCALE: ${WEB_DEMO_LOCALE:-en-US}

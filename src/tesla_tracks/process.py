@@ -28,6 +28,12 @@ import pyarrow as pa
 from .storage import write_parquet_atomic
 
 PARK_END = timedelta(minutes=3)
+
+# Driving-style events (m/s²). Accelerations come from speed changes, lateral g from speed × turn rate.
+HARSH_ACCEL = 2.5
+HARSH_BRAKE = -3.0
+SHARP_TURN = 3.0
+FAST_KMH = 120.0
 GAP = timedelta(minutes=10)
 CHARGE_GAP = timedelta(minutes=30)
 
@@ -104,6 +110,13 @@ DRIVE_SCHEMA = pa.schema(
         ("avg_speed_kmh", pa.float64()),
         ("max_speed_kmh", pa.float64()),
         ("avg_outside_temp_c", pa.float64()),
+        ("harsh_accel", pa.int32()),
+        ("harsh_brake", pa.int32()),
+        ("sharp_turns", pa.int32()),
+        ("traction_kwh", pa.float64()),
+        ("regen_kwh", pa.float64()),
+        ("fast_min", pa.float64()),
+        ("moving_min", pa.float64()),
     ]
 )
 CHARGE_SCHEMA = pa.schema(
@@ -204,6 +217,20 @@ class _Drive:
     temps: list = field(default_factory=list)
     path_km: float = 0.0
     last_latlon: tuple | None = None
+    # driving style
+    prev_speed: tuple | None = None  # (ts, m/s)
+    prev_heading: tuple | None = None  # (ts, degrees, m/s)
+    prev_power_ts: datetime | None = None
+    harsh_accel: int = 0
+    harsh_brake: int = 0
+    sharp_turns: int = 0
+    in_accel: bool = False
+    in_brake: bool = False
+    in_turn: bool = False
+    drive_kwh: float = 0.0
+    regen_kwh: float = 0.0
+    fast_s: float = 0.0
+    moving_s: float = 0.0
 
 
 @dataclass
@@ -273,12 +300,61 @@ class Tracker:
                 "avg_speed_kmh": round(distance / (minutes / 60), 1) if distance and minutes > 0 else None,
                 "max_speed_kmh": round(d.max_speed, 1),
                 "avg_outside_temp_c": round(sum(d.temps) / len(d.temps), 1) if d.temps else None,
+                "harsh_accel": d.harsh_accel,
+                "harsh_brake": d.harsh_brake,
+                "sharp_turns": d.sharp_turns,
+                "traction_kwh": round(d.drive_kwh, 3),
+                "regen_kwh": round(d.regen_kwh, 3),
+                "fast_min": round(d.fast_s / 60, 2),
+                "moving_min": round(d.moving_s / 60, 2),
             }
         )
         if not in_progress:
             self.drive = None
             self.park_since = None
             self.park_state = None
+
+    def _track_style(self, ts: datetime, updates: dict) -> None:
+        """Count harsh accelerations/brakes/turns and integrate traction vs regen energy."""
+        s, d = self.state, self.drive
+        if "VehicleSpeed" in updates and _num(s.get("VehicleSpeed")) is not None:
+            v = s["VehicleSpeed"] * SPEED_TO_KMH / 3.6
+            if d.prev_speed:
+                dt = (ts - d.prev_speed[0]).total_seconds()
+                if 0.5 <= dt <= 6:
+                    a = (v - d.prev_speed[1]) / dt
+                    if a >= HARSH_ACCEL and not d.in_accel:
+                        d.harsh_accel += 1
+                    if a <= HARSH_BRAKE and not d.in_brake:
+                        d.harsh_brake += 1
+                    d.in_accel, d.in_brake = a >= HARSH_ACCEL, a <= HARSH_BRAKE
+                    if v * 3.6 > FAST_KMH:
+                        d.fast_s += dt
+                    if v > 0.5:
+                        d.moving_s += dt
+            d.prev_speed = (ts, v)
+        if "GpsHeading" in updates and _num(s.get("GpsHeading")) is not None:
+            v = (_num(s.get("VehicleSpeed")) or 0.0) * SPEED_TO_KMH / 3.6
+            h = s["GpsHeading"]
+            if d.prev_heading:
+                dt = (ts - d.prev_heading[0]).total_seconds()
+                dh = abs((h - d.prev_heading[1] + 180) % 360 - 180)
+                vm = (v + d.prev_heading[2]) / 2
+                if 0.5 <= dt <= 7 and vm > 4:
+                    lat = vm * math.radians(dh) / dt
+                    if lat >= SHARP_TURN and not d.in_turn:
+                        d.sharp_turns += 1
+                    d.in_turn = lat >= SHARP_TURN
+            d.prev_heading = (ts, h, v)
+        p = _power_kw(s)
+        if p is not None and ("PackCurrent" in updates or "PackVoltage" in updates):
+            if d.prev_power_ts is not None:
+                dt = min(10.0, (ts - d.prev_power_ts).total_seconds())
+                if p >= 0:
+                    d.drive_kwh += p * dt / 3600
+                else:
+                    d.regen_kwh += -p * dt / 3600
+            d.prev_power_ts = ts
 
     def _track_drive_point(self, ts: datetime) -> None:
         s, d = self.state, self.drive
@@ -384,6 +460,7 @@ class Tracker:
         if self.drive is None and moving:
             self._open_drive(ts)
         if self.drive:
+            self._track_style(ts, updates)
             if moving:
                 self.drive.last_moving_ts = ts
                 self.park_since = None
