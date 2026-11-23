@@ -191,11 +191,11 @@ def test_driving_style_events_and_regen():
     parked_car(tr)
     tr.step(at(10), {"Gear": "D", "VehicleSpeed": 0.0, "GpsHeading": 0.0, "PackVoltage": 400.0, "PackCurrent": 0.0})
     # harsh launch: 0 -> 36 km/h (22.4 mph) in 2 s = 5 m/s²
-    tr.step(at(12), {"VehicleSpeed": 22.37, "PackCurrent": 150.0})
+    tr.step(at(12), {"VehicleSpeed": 22.37, "PackCurrent": -150.0})  # discharging
     tr.step(at(14), {"VehicleSpeed": 24.0})
     # 90° turn at 36 km/h in 4 s: 10 m/s × (π/2)/4 ≈ 3.9 m/s² lateral
     tr.step(at(16), {"GpsHeading": 0.0})
-    tr.step(at(20), {"GpsHeading": 90.0, "PackCurrent": -100.0})
+    tr.step(at(20), {"GpsHeading": 90.0, "PackCurrent": 100.0})  # regenerating
     # hard stop: 24 mph (10.7 m/s) -> 0 in 2 s
     tr.step(at(30), {"VehicleSpeed": 24.0})
     tr.step(at(32), {"VehicleSpeed": 0.0, "PackCurrent": 0.0})

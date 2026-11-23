@@ -200,7 +200,7 @@ class Car:
                 EnergyRemaining=round(self.energy, 3),
                 BatteryLevel=round(self.soc, 1),
                 PackVoltage=round(PACK_V - p_batt * 0.15, 1),
-                PackCurrent=round(p_batt * 1000 / PACK_V, 1),
+                PackCurrent=round(-p_batt * 1000 / PACK_V, 1),  # car convention: negative = discharging
                 GpsHeading=last_heading,
                 **{"Location.latitude": round(lat, 6), "Location.longitude": round(lon, 6)},
             )

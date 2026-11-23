@@ -200,8 +200,13 @@ def _scaled(v, k):
 
 
 def _power_kw(s: dict):
+    """Battery power in kW, positive when driving the motor, negative when regenerating.
+
+    The car reports PackCurrent negative while discharging (verified on a Model 3 Highland: ~-10 kW
+    at motorway speed), so the sign is flipped here.
+    """
     v, i = _num(s.get("PackVoltage")), _num(s.get("PackCurrent"))
-    return None if v is None or i is None else v * i / 1000.0
+    return None if v is None or i is None else -v * i / 1000.0
 
 
 def _is_moving(s: dict) -> bool:
