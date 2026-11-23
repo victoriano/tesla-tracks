@@ -308,3 +308,18 @@ export function parkedDrain(h: BatteryHistory) {
     hours: (acc.on.ms + acc.off.ms) / 3_600_000,
   };
 }
+
+/** Usable pack energy in kWh as reported by the car (NominalFullPackEnergyKwh), if available. */
+export async function packKwh(): Promise<number | null> {
+  const g = rawTelemetry();
+  if (!g) return null;
+  try {
+    const [r] = await query<{ v: number | null }>(
+      `SELECT arg_max(value_num, ts) AS v FROM read_parquet('${g}', hive_partitioning=false)
+       WHERE field = 'NominalFullPackEnergyKwh' AND value_num > 10`,
+    );
+    return r?.v === null || r?.v === undefined ? null : Number(r.v);
+  } catch {
+    return null;
+  }
+}

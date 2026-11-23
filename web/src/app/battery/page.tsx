@@ -2,17 +2,18 @@ import Link from "next/link";
 import { connection } from "next/server";
 import BatteryChart from "@/components/BatteryChart";
 import { Empty, Stat } from "@/components/ui";
-import { batteryHistory, parkedDrain } from "@/lib/data";
+import { batteryHistory, packKwh, parkedDrain } from "@/lib/data";
 import { fmt, LOCALE_CODE, TIMEZONE } from "@/lib/format";
 
 const RANGES = [1, 3, 7, 30];
-const KWH_PER_PCT = Number(process.env.TT_BATTERY_KWH || "57.5") / 100; // Model 3 RWD (LFP) usable capacity
 
 export default async function BatteryPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
   await connection();
   const { days: q } = await searchParams;
   const days = RANGES.includes(Number(q)) ? Number(q) : 7;
-  const h = await batteryHistory(days);
+  const [h, reported] = await Promise.all([batteryHistory(days), packKwh()]);
+  // Battery capacity: what the car reports, else TT_BATTERY_KWH, else a Model 3 RWD estimate.
+  const KWH_PER_PCT = (reported ?? Number(process.env.TT_BATTERY_KWH || "57.5")) / 100;
   if (!h.points.length) return <Empty>No battery readings in this period yet.</Empty>;
   const drain = parkedDrain(h);
   const last = h.points[h.points.length - 1];
@@ -57,7 +58,7 @@ export default async function BatteryPage({ searchParams }: { searchParams: Prom
       <BatteryChart h={h} timeZone={TIMEZONE} locale={LOCALE_CODE} />
       <p className="text-xs text-zinc-500">
         The car only reports while it is awake; a sleeping car shows as a straight line between readings. kWh are
-        estimated from a {fmt(KWH_PER_PCT * 100, 1)} kWh battery.
+        estimated from a {fmt(KWH_PER_PCT * 100, 1)} kWh battery{reported ? " (as reported by the car)" : ""}.
       </p>
     </div>
   );
